@@ -40,17 +40,12 @@ workflows:
             echo "--- after ---"
             cat "$ENTITLEMENTS_FILE"
           fi
-      - name: Set up code signing (revoke EAS cert, create fresh)
+      - name: Set up code signing (delete EAS cert, create fresh with explicit key)
         script: |
           set -e
           keychain initialize
 
-          # EAS が以前作った Distribution Certificate (秘密鍵が無い) を revoke。
-          # こうしないと fetch-signing-files が既存certを取りに行って
-          # "Cannot save Signing Certificates without certificate private key" になる。
-          echo "--- existing distribution certificates ---"
-          app-store-connect certificates list --type IOS_DISTRIBUTION --json || true
-
+          # Step 1: 既存の Distribution Certificate (EAS作成、秘密鍵なし) を削除
           CERT_IDS=$(app-store-connect certificates list \
             --type IOS_DISTRIBUTION \
             --json 2>/dev/null | jq -r '.[].id // empty')
@@ -60,21 +55,34 @@ workflows:
             app-store-connect certificates delete "$CERT_ID" --ignore-not-found || true
           done
 
-          # 既存 App Store プロファイルも revoke 後に無効になるので削除
+          # Step 2: 既存 App Store プロファイルも削除
           PROFILE_IDS=$(app-store-connect profiles list \
             --bundle-id-identifier com.shoasano.scheduleapp \
             --json 2>/dev/null \
             | jq -r '.[] | select(.attributes.profileType == "IOS_APP_STORE") | .id')
           for PROFILE_ID in $PROFILE_IDS; do
             echo "Deleting profile $PROFILE_ID"
-            app-store-connect profiles delete "$PROFILE_ID" || true
+            app-store-connect profiles delete "$PROFILE_ID" --ignore-not-found || true
           done
 
-          # フレッシュな cert + profile を作成
+          # Step 3: Apple API の eventual consistency 対応
+          echo "Waiting for Apple API to propagate deletions..."
+          sleep 15
+
+          # Step 4: 削除後の状態を確認
+          echo "--- certificates after deletion ---"
+          app-store-connect certificates list --type IOS_DISTRIBUTION --json || true
+
+          # Step 5: 明示的に秘密鍵を生成
+          openssl genrsa -out /tmp/cert_private_key.pem 2048
+
+          # Step 6: 新規 cert + profile 作成（秘密鍵を明示指定）
           app-store-connect fetch-signing-files \
             com.shoasano.scheduleapp \
             --type IOS_APP_STORE \
-            --create
+            --create \
+            --certificate-key=@file:/tmp/cert_private_key.pem
+
           keychain add-certificates
           xcode-project use-profiles
 
