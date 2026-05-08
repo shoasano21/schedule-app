@@ -56,8 +56,8 @@ workflows:
             --json 2>/dev/null | jq -r '.[].id // empty')
 
           for CERT_ID in $CERT_IDS; do
-            echo "Revoking distribution certificate $CERT_ID"
-            app-store-connect certificates revoke "$CERT_ID" || true
+            echo "Deleting distribution certificate $CERT_ID"
+            app-store-connect certificates delete "$CERT_ID" --ignore-not-found || true
           done
 
           # 既存 App Store プロファイルも revoke 後に無効になるので削除
