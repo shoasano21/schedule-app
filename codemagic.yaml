@@ -40,18 +40,44 @@ workflows:
             echo "--- after ---"
             cat "$ENTITLEMENTS_FILE"
           fi
-      - name: Set up code signing
+      - name: Set up code signing (revoke EAS cert, create fresh)
         script: |
           set -e
           keychain initialize
+
+          # EAS が以前作った Distribution Certificate (秘密鍵が無い) を revoke。
+          # こうしないと fetch-signing-files が既存certを取りに行って
+          # "Cannot save Signing Certificates without certificate private key" になる。
+          echo "--- existing distribution certificates ---"
+          app-store-connect certificates list --type IOS_DISTRIBUTION --json || true
+
+          CERT_IDS=$(app-store-connect certificates list \
+            --type IOS_DISTRIBUTION \
+            --json 2>/dev/null | jq -r '.[].id // empty')
+
+          for CERT_ID in $CERT_IDS; do
+            echo "Revoking distribution certificate $CERT_ID"
+            app-store-connect certificates revoke "$CERT_ID" || true
+          done
+
+          # 既存 App Store プロファイルも revoke 後に無効になるので削除
+          PROFILE_IDS=$(app-store-connect profiles list \
+            --bundle-id-identifier com.shoasano.scheduleapp \
+            --json 2>/dev/null \
+            | jq -r '.[] | select(.attributes.profileType == "IOS_APP_STORE") | .id')
+          for PROFILE_ID in $PROFILE_IDS; do
+            echo "Deleting profile $PROFILE_ID"
+            app-store-connect profiles delete "$PROFILE_ID" || true
+          done
+
+          # フレッシュな cert + profile を作成
           app-store-connect fetch-signing-files \
             com.shoasano.scheduleapp \
             --type IOS_APP_STORE \
             --create
           keychain add-certificates
-          xcode-project use-profiles --warn-only
+          xcode-project use-profiles
 
-          # debug: list profiles in keychain / installed
           echo "--- installed profiles ---"
           ls -la "$HOME/Library/MobileDevice/Provisioning Profiles/" || true
       - name: Set build number
