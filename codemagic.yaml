@@ -28,34 +28,27 @@ workflows:
         script: |
           cd ios
           pod install
-      - name: Set up code signing (regenerate with Push capability)
+      - name: Strip Push Notifications entitlement (we only use local notifications)
         script: |
-          keychain initialize
-
-          # Apple Developer Portal でバンドルIDの Push Notifications capability を有効化
-          # (expo-notifications が aps-environment entitlement を要求するため)
-          BUNDLE_ID_RESOURCE=$(app-store-connect bundle-ids list \
-            --bundle-id-identifier com.shoasano.scheduleapp \
-            --json 2>/dev/null | jq -r '.[0].id // empty')
-
-          if [ -n "$BUNDLE_ID_RESOURCE" ]; then
-            echo "Enabling PUSH_NOTIFICATIONS on bundle ID $BUNDLE_ID_RESOURCE"
-            app-store-connect bundle-ids enable-capabilities \
-              "$BUNDLE_ID_RESOURCE" \
-              PUSH_NOTIFICATIONS || echo "Capability may already be enabled"
+          set -e
+          ENTITLEMENTS_FILE=$(find ios -name "*.entitlements" | head -1)
+          echo "Found entitlements file: $ENTITLEMENTS_FILE"
+          if [ -n "$ENTITLEMENTS_FILE" ]; then
+            echo "--- before ---"
+            cat "$ENTITLEMENTS_FILE"
+            /usr/libexec/PlistBuddy -c "Delete :aps-environment" "$ENTITLEMENTS_FILE" 2>/dev/null || true
+            echo "--- after ---"
+            cat "$ENTITLEMENTS_FILE"
           fi
 
-          # 既存の App Store プロファイルを削除し、最新 capability で再作成させる
-          PROFILE_IDS=$(app-store-connect profiles list \
-            --bundle-id-identifier com.shoasano.scheduleapp \
-            --json 2>/dev/null \
-            | jq -r '.[] | select(.attributes.profileType == "IOS_APP_STORE") | .id')
-
-          for PROFILE_ID in $PROFILE_IDS; do
-            echo "Deleting profile $PROFILE_ID"
-            app-store-connect profiles delete "$PROFILE_ID" || true
-          done
-
+          # Project.pbxproj からも com.apple.Push capability を削除
+          PBXPROJ=$(find ios -name "project.pbxproj" | head -1)
+          if [ -n "$PBXPROJ" ]; then
+            sed -i '' '/com\.apple\.Push/d' "$PBXPROJ" || true
+          fi
+      - name: Set up code signing
+        script: |
+          keychain initialize
           app-store-connect fetch-signing-files \
             com.shoasano.scheduleapp \
             --type IOS_APP_STORE \
