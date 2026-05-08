@@ -1,0 +1,57 @@
+workflows:
+  ios-production:
+    name: iOS Production (TestFlight)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    integrations:
+      app_store_connect: codemagic-asc
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.shoasano.scheduleapp
+      node: 20.18.0
+      xcode: latest
+      cocoapods: default
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+        - pattern: master
+          include: true
+    scripts:
+      - name: Install npm dependencies
+        script: |
+          npm ci
+      - name: Generate native iOS project (expo prebuild)
+        script: |
+          npx expo prebuild --platform ios --clean --no-install
+      - name: Install CocoaPods
+        script: |
+          cd ios
+          pod install
+      - name: Set up provisioning profiles
+        script: |
+          xcode-project use-profiles
+      - name: Set build number
+        script: |
+          cd ios
+          agvtool new-version -all $BUILD_NUMBER
+      - name: Build ipa for App Store
+        script: |
+          WORKSPACE_PATH=$(find ios -name "*.xcworkspace" -type d | head -1)
+          SCHEME_NAME=$(basename "$WORKSPACE_PATH" .xcworkspace)
+          xcode-project build-ipa \
+            --workspace "$WORKSPACE_PATH" \
+            --scheme "$SCHEME_NAME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.app
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        beta_groups:
+          - App Store Connect Users
