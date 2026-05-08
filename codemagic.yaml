@@ -28,7 +28,7 @@ workflows:
         script: |
           cd ios
           pod install
-      - name: Strip Push Notifications entitlement (we only use local notifications)
+      - name: Strip aps-environment entitlement (we only use local notifications)
         script: |
           set -e
           ENTITLEMENTS_FILE=$(find ios -name "*.entitlements" | head -1)
@@ -40,21 +40,20 @@ workflows:
             echo "--- after ---"
             cat "$ENTITLEMENTS_FILE"
           fi
-
-          # Project.pbxproj からも com.apple.Push capability を削除
-          PBXPROJ=$(find ios -name "project.pbxproj" | head -1)
-          if [ -n "$PBXPROJ" ]; then
-            sed -i '' '/com\.apple\.Push/d' "$PBXPROJ" || true
-          fi
       - name: Set up code signing
         script: |
+          set -e
           keychain initialize
           app-store-connect fetch-signing-files \
             com.shoasano.scheduleapp \
             --type IOS_APP_STORE \
             --create
           keychain add-certificates
-          xcode-project use-profiles
+          xcode-project use-profiles --warn-only
+
+          # debug: list profiles in keychain / installed
+          echo "--- installed profiles ---"
+          ls -la "$HOME/Library/MobileDevice/Provisioning Profiles/" || true
       - name: Set build number
         script: |
           cd ios
