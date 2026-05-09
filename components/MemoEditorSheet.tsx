@@ -14,7 +14,7 @@ import {
   View,
 } from 'react-native';
 import type { Theme } from '../constants/colors';
-import type { Memo, MemoAttachment } from '../types/Memo';
+import type { Memo, MemoAttachment, MemoFolder } from '../types/Memo';
 import {
   deleteAttachmentFile,
   makeUrlAttachment,
@@ -28,17 +28,30 @@ interface Props {
   visible: boolean;
   theme: Theme;
   memo: Memo | null;
+  folders: MemoFolder[];
   onClose: () => void;
   onChange: (patch: Partial<Omit<Memo, 'id' | 'createdAt'>>) => void;
   onDelete: () => void;
+  onCreateFolder: (name: string) => MemoFolder | null;
 }
 
-export function MemoEditorSheet({ visible, theme, memo, onClose, onChange, onDelete }: Props) {
+export function MemoEditorSheet({
+  visible,
+  theme,
+  memo,
+  folders,
+  onClose,
+  onChange,
+  onDelete,
+  onCreateFolder,
+}: Props) {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [urlDraft, setUrlDraft] = useState('');
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [showNewFolderInput, setShowNewFolderInput] = useState(false);
+  const [folderDraft, setFolderDraft] = useState('');
 
   useEffect(() => {
     if (!visible || !memo) return;
@@ -46,6 +59,8 @@ export function MemoEditorSheet({ visible, theme, memo, onClose, onChange, onDel
     setBody(memo.body);
     setUrlDraft('');
     setShowUrlInput(false);
+    setShowNewFolderInput(false);
+    setFolderDraft('');
   }, [visible, memo?.id]);
 
   if (!memo) return null;
@@ -155,7 +170,9 @@ export function MemoEditorSheet({ visible, theme, memo, onClose, onChange, onDel
           style={{ flex: 1 }}
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
           showsVerticalScrollIndicator={false}
+          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
         >
           <TextInput
             value={title}
@@ -175,6 +192,95 @@ export function MemoEditorSheet({ visible, theme, memo, onClose, onChange, onDel
             style={[styles.bodyInput, { color: theme.text }]}
             textAlignVertical="top"
           />
+
+          <View style={[styles.divider, { backgroundColor: theme.separator }]} />
+
+          <Text style={[styles.sectionLabel, { color: theme.textTertiary }]}>📁 フォルダ</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.folderRow}
+          >
+            <FolderChip
+              label="未分類"
+              selected={!memo.folderId}
+              theme={theme}
+              onPress={() => onChange({ folderId: null })}
+            />
+            {folders.map((f) => (
+              <FolderChip
+                key={f.id}
+                label={f.name}
+                color={f.color}
+                selected={memo.folderId === f.id}
+                theme={theme}
+                onPress={() => onChange({ folderId: f.id })}
+              />
+            ))}
+            {!showNewFolderInput ? (
+              <Pressable
+                onPress={() => {
+                  if (Platform.OS !== 'web') void Haptics.selectionAsync();
+                  setShowNewFolderInput(true);
+                }}
+                style={[styles.folderAddChip, { borderColor: theme.accent }]}
+              >
+                <Ionicons name="add" size={14} color={theme.accent} />
+                <Text style={[styles.folderAddText, { color: theme.accent }]}>新規</Text>
+              </Pressable>
+            ) : null}
+          </ScrollView>
+          {showNewFolderInput ? (
+            <View style={styles.folderNewRow}>
+              <TextInput
+                value={folderDraft}
+                onChangeText={setFolderDraft}
+                placeholder="フォルダ名..."
+                placeholderTextColor={theme.textTertiary}
+                maxLength={24}
+                autoFocus
+                returnKeyType="done"
+                onSubmitEditing={() => {
+                  const f = onCreateFolder(folderDraft);
+                  if (f) {
+                    onChange({ folderId: f.id });
+                    setFolderDraft('');
+                    setShowNewFolderInput(false);
+                  }
+                }}
+                style={[
+                  styles.folderInput,
+                  { backgroundColor: theme.bgSecondary, color: theme.text },
+                ]}
+              />
+              <Pressable
+                onPress={() => {
+                  const f = onCreateFolder(folderDraft);
+                  if (f) {
+                    onChange({ folderId: f.id });
+                    setFolderDraft('');
+                    setShowNewFolderInput(false);
+                  }
+                }}
+                style={({ pressed }) => [
+                  styles.folderConfirmBtn,
+                  { backgroundColor: theme.accent, opacity: pressed ? 0.85 : 1 },
+                ]}
+              >
+                <Text style={styles.folderConfirmText}>追加</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  setShowNewFolderInput(false);
+                  setFolderDraft('');
+                }}
+                hitSlop={10}
+                style={{ paddingHorizontal: 4 }}
+              >
+                <Ionicons name="close" size={18} color={theme.textTertiary} />
+              </Pressable>
+            </View>
+          ) : null}
 
           <View style={[styles.divider, { backgroundColor: theme.separator }]} />
 
@@ -273,6 +379,43 @@ export function MemoEditorSheet({ visible, theme, memo, onClose, onChange, onDel
         </ScrollView>
       </KeyboardAvoidingView>
     </BottomSheet>
+  );
+}
+
+function FolderChip({
+  label,
+  color,
+  selected,
+  theme,
+  onPress,
+}: {
+  label: string;
+  color?: string;
+  selected: boolean;
+  theme: Theme;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={() => {
+        if (Platform.OS !== 'web') void Haptics.selectionAsync();
+        onPress();
+      }}
+      style={[
+        styles.folderChip,
+        {
+          backgroundColor: selected ? theme.accent : theme.bgSecondary,
+          borderColor: selected ? theme.accent : theme.separator,
+        },
+      ]}
+    >
+      {color ? (
+        <View style={[styles.folderChipDot, { backgroundColor: selected ? '#fff' : color }]} />
+      ) : null}
+      <Text style={[styles.folderChipText, { color: selected ? '#fff' : theme.text }]}>
+        {label}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -433,6 +576,71 @@ const styles = StyleSheet.create({
   divider: {
     height: StyleSheet.hairlineWidth,
     marginVertical: 14,
+  },
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+    marginBottom: 8,
+  },
+  folderRow: {
+    gap: 6,
+    paddingRight: 12,
+  },
+  folderChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  folderChipDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  folderChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  folderAddChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+  },
+  folderAddText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  folderNewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 10,
+  },
+  folderInput: {
+    flex: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+  },
+  folderConfirmBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  folderConfirmText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
   },
   attachHeader: {
     flexDirection: 'row',

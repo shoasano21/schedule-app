@@ -70,8 +70,8 @@ export function AddEventSheet({
 
   const shakeAnim = useRef(new RNAnimated.Value(0)).current;
 
-  // Lock fields that were already chosen by the cell/slot tap
-  const lockDate = !isEdit && defaultDate != null;
+  // 開始時刻はセルタップ時のみロック。日付欄は廃止したため常に lockDate 扱い。
+  const lockDate = true;
   const lockStart = !isEdit && defaultStartH != null;
 
   useEffect(() => {
@@ -102,25 +102,6 @@ export function AddEventSheet({
     setNewTitleDraft('');
     setManageMode(false);
   }, [visible, initial, defaultDate, defaultStartH]);
-
-  const dateOptions = useMemo(() => {
-    const base = fromISODate(date);
-    const days: { iso: string; day: number; month: number; dow: string }[] = [];
-    for (let i = -7; i <= 90; i++) {
-      const d = new Date(base);
-      d.setDate(base.getDate() + i);
-      const dow = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()];
-      days.push({
-        iso: toISODate(d),
-        day: d.getDate(),
-        month: d.getMonth() + 1,
-        dow,
-      });
-    }
-    return days;
-    // intentionally only depend on visibility — keep options stable while sheet is open
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible]);
 
   const validEndHours = useMemo(
     () => HOUR_LIST.filter((h) => h > startH),
@@ -220,21 +201,25 @@ export function AddEventSheet({
           </Pressable>
         </View>
 
-        {lockDate ? (
-          <View style={[styles.contextBar, { backgroundColor: theme.accentBg }]}>
-            <Ionicons name="calendar-outline" size={14} color={theme.accent} />
-            <Text style={[styles.contextText, { color: theme.accent }]}>
-              {formatDateShort(date)}
-              {lockStart ? `・${formatHour(startH)} に追加` : ' に追加'}
-            </Text>
-          </View>
-        ) : null}
+        <View style={[styles.contextBar, { backgroundColor: theme.accentBg }]}>
+          <Ionicons name="calendar-outline" size={14} color={theme.accent} />
+          <Text style={[styles.contextText, { color: theme.accent }]}>
+            {formatDateShort(date)}
+            {isEdit
+              ? ` ・ ${formatHour(startH)}–${formatHour(endH)}`
+              : lockStart
+              ? `・${formatHour(startH)} に追加`
+              : ' に追加'}
+          </Text>
+        </View>
 
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
           showsVerticalScrollIndicator={false}
+          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
         >
           <Section
             label="タイトル"
@@ -344,58 +329,13 @@ export function AddEventSheet({
             ) : null}
           </Section>
 
-          {!lockDate ? (
-            <Section label="日付" theme={theme}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.dateRow}
-              >
-                {dateOptions.map((d) => {
-                  const selected = d.iso === date;
-                  return (
-                    <Pressable
-                      key={d.iso}
-                      onPress={() => {
-                        if (Platform.OS !== 'web') void Haptics.selectionAsync();
-                        setDate(d.iso);
-                      }}
-                      style={[
-                        styles.datePill,
-                        {
-                          backgroundColor: selected ? theme.accent : theme.bgSecondary,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.datePillDow,
-                          { color: selected ? 'rgba(255,255,255,0.85)' : theme.textTertiary },
-                        ]}
-                      >
-                        {d.month}/{d.day}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.datePillNum,
-                          { color: selected ? '#fff' : theme.text },
-                        ]}
-                      >
-                        {d.dow}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-            </Section>
-          ) : null}
-
           {!lockStart ? (
             <Section label="開始時刻" theme={theme}>
               <HourPicker
                 value={startH}
                 hours={HOUR_LIST.filter((h) => h < END_HOUR)}
                 theme={theme}
+                visible={visible}
                 onChange={(h) => {
                   setStartH(h);
                   if (endH <= h) setEndH(Math.min(END_HOUR, h + 1));
@@ -409,6 +349,7 @@ export function AddEventSheet({
               value={endH}
               hours={validEndHours}
               theme={theme}
+              visible={visible}
               onChange={setEndH}
             />
           </Section>
@@ -439,8 +380,9 @@ export function AddEventSheet({
               placeholder="メモを入力..."
               placeholderTextColor={theme.textTertiary}
               multiline
-              numberOfLines={3}
               maxLength={200}
+              scrollEnabled
+              textAlignVertical="top"
               style={[
                 styles.input,
                 styles.multiline,
@@ -483,19 +425,39 @@ function Section({
   );
 }
 
+// 1 ピル分の幅 (paddingHorizontal:14*2 + テキスト約42) + gap:8
+const HOUR_PILL_STRIDE = 76;
+
 function HourPicker({
   value,
   hours,
   onChange,
   theme,
+  visible,
 }: {
   value: number;
   hours: number[];
   onChange: (h: number) => void;
   theme: Theme;
+  visible?: boolean;
 }) {
+  const scrollRef = useRef<ScrollView>(null);
+
+  // 選択中の時刻が左から2番目に来るようにスクロール
+  useEffect(() => {
+    if (!visible) return;
+    const idx = hours.indexOf(value);
+    if (idx < 0) return;
+    const x = Math.max(0, (idx - 1) * HOUR_PILL_STRIDE);
+    const t = setTimeout(() => {
+      scrollRef.current?.scrollTo({ x, animated: false });
+    }, 30);
+    return () => clearTimeout(t);
+  }, [visible, value, hours]);
+
   return (
     <ScrollView
+      ref={scrollRef}
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={{ gap: 8, paddingRight: 12 }}
@@ -651,28 +613,6 @@ const styles = StyleSheet.create({
     minHeight: 84,
     textAlignVertical: 'top',
     paddingTop: 12,
-  },
-  dateRow: {
-    flexDirection: 'row',
-    gap: 6,
-    paddingRight: 12,
-  },
-  datePill: {
-    minWidth: 56,
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    borderRadius: 12,
-  },
-  datePillDow: {
-    fontSize: 10,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  datePillNum: {
-    fontSize: 16,
-    fontWeight: '700',
-    fontVariant: ['tabular-nums'],
   },
   hourPill: {
     paddingHorizontal: 14,

@@ -12,6 +12,7 @@ const BACKUP_KEYS = [
   'schedule-app:period-times:v1',
   'schedule-app:title-presets:v1',
   'schedule-app:memos:v1',
+  'schedule-app:memo-folders:v1',
   'schedule-app:notify-enabled:v1',
   'schedule-app:notify-settings:v1',
   'schedule-app:preferences:v1',

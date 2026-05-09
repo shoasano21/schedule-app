@@ -179,7 +179,9 @@ export function TaskAddSheet({
           style={{ flex: 1 }}
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
           showsVerticalScrollIndicator={false}
+          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
         >
           <RNAnimated.View style={shakeStyle}>
             <Section label="🎓 講義名" theme={theme}>

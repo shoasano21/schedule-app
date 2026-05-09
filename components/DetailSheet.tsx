@@ -10,12 +10,13 @@ interface Props {
   visible: boolean;
   event: EventItem | null;
   theme: Theme;
+  readOnly?: boolean;
   onClose: () => void;
   onEdit: (event: EventItem) => void;
   onDelete: (event: EventItem) => void;
 }
 
-export function DetailSheet({ visible, event, theme, onClose, onEdit, onDelete }: Props) {
+export function DetailSheet({ visible, event, theme, readOnly, onClose, onEdit, onDelete }: Props) {
   return (
     <BottomSheet visible={visible} onClose={onClose} theme={theme} maxHeightRatio={0.7}>
       {event ? (
@@ -59,36 +60,45 @@ export function DetailSheet({ visible, event, theme, onClose, onEdit, onDelete }
             </View>
           ) : null}
 
-          <View style={styles.actions}>
-            <Pressable
-              onPress={() => onEdit(event)}
-              style={({ pressed }) => [
-                styles.actionBtn,
-                {
-                  backgroundColor: theme.accentBg,
-                  opacity: pressed ? 0.7 : 1,
-                },
-              ]}
-            >
-              <Ionicons name="create-outline" size={18} color={theme.accent} />
-              <Text style={[styles.actionLabel, { color: theme.accent }]}>編集</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => onDelete(event)}
-              style={({ pressed }) => [
-                styles.actionBtn,
-                {
-                  backgroundColor: theme.palette.red.bg,
-                  opacity: pressed ? 0.7 : 1,
-                },
-              ]}
-            >
-              <Ionicons name="trash-outline" size={18} color={theme.palette.red.fg} />
-              <Text style={[styles.actionLabel, { color: theme.palette.red.fg }]}>
-                削除
+          {readOnly ? (
+            <View style={[styles.readOnlyBar, { backgroundColor: theme.bgSecondary }]}>
+              <Ionicons name="eye-outline" size={14} color={theme.textTertiary} />
+              <Text style={[styles.readOnlyText, { color: theme.textTertiary }]}>
+                共有された予定 (閲覧のみ)
               </Text>
-            </Pressable>
-          </View>
+            </View>
+          ) : (
+            <View style={styles.actions}>
+              <Pressable
+                onPress={() => onEdit(event)}
+                style={({ pressed }) => [
+                  styles.actionBtn,
+                  {
+                    backgroundColor: theme.accentBg,
+                    opacity: pressed ? 0.7 : 1,
+                  },
+                ]}
+              >
+                <Ionicons name="create-outline" size={18} color={theme.accent} />
+                <Text style={[styles.actionLabel, { color: theme.accent }]}>編集</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => onDelete(event)}
+                style={({ pressed }) => [
+                  styles.actionBtn,
+                  {
+                    backgroundColor: theme.palette.red.bg,
+                    opacity: pressed ? 0.7 : 1,
+                  },
+                ]}
+              >
+                <Ionicons name="trash-outline" size={18} color={theme.palette.red.fg} />
+                <Text style={[styles.actionLabel, { color: theme.palette.red.fg }]}>
+                  削除
+                </Text>
+              </Pressable>
+            </View>
+          )}
         </View>
       ) : null}
     </BottomSheet>
@@ -172,6 +182,19 @@ const styles = StyleSheet.create({
   },
   actionLabel: {
     fontSize: 15,
+    fontWeight: '600',
+  },
+  readOnlyBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginTop: 18,
+  },
+  readOnlyText: {
+    fontSize: 13,
     fontWeight: '600',
   },
 });

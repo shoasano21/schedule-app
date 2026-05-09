@@ -1,14 +1,17 @@
 import { useNavigation } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AddEventSheet, type AddEventInput } from '../../components/AddEventSheet';
 import { DetailSheet } from '../../components/DetailSheet';
+import { EventSearchSheet } from '../../components/EventSearchSheet';
 import { MonthHeader } from '../../components/MonthHeader';
 import { MonthTimeGrid } from '../../components/MonthTimeGrid';
+import { ScheduleShareSheet } from '../../components/ScheduleShareSheet';
 import { useEvents } from '../../hooks/useEvents';
 import { useMonth } from '../../hooks/useMonth';
 import { useNowLine } from '../../hooks/useNowLine';
+import { useSharedSchedules } from '../../hooks/useSharedSchedules';
 import { useTheme } from '../../hooks/useTheme';
 import type { EventItem } from '../../types/Event';
 
@@ -18,6 +21,7 @@ export default function ScheduleScreen() {
   const month = useMonth();
   const events = useEvents();
   const now = useNowLine();
+  const shared = useSharedSchedules();
 
   const [selected, setSelected] = useState<EventItem | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -26,13 +30,42 @@ export default function ScheduleScreen() {
   const [defaultDate, setDefaultDate] = useState<string | undefined>(undefined);
   const [defaultStartH, setDefaultStartH] = useState<number | undefined>(undefined);
   const [todayTick, setTodayTick] = useState(0);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [activeSharedId, setActiveSharedId] = useState<string | null>(null);
+
+  // 取り込んだスケジュールが削除されたら自分に戻す
+  useEffect(() => {
+    if (activeSharedId && !shared.schedules.some((s) => s.id === activeSharedId)) {
+      setActiveSharedId(null);
+    }
+  }, [activeSharedId, shared.schedules]);
+
+  const activeShared = activeSharedId
+    ? shared.schedules.find((s) => s.id === activeSharedId) ?? null
+    : null;
+  const isShared = !!activeShared;
+
+  // 表示するイベント: 自分 or 共有された人のスナップショット
+  const displayEventsByDate = useMemo(() => {
+    if (!activeShared) return events.eventsByDate;
+    const map = new Map<string, EventItem[]>();
+    for (const e of activeShared.events) {
+      const arr = map.get(e.date) ?? [];
+      arr.push(e);
+      map.set(e.date, arr);
+    }
+    for (const arr of map.values()) {
+      arr.sort((a, b) => a.startH - b.startH);
+    }
+    return map;
+  }, [activeShared, events.eventsByDate]);
 
   const handleToday = useCallback(() => {
     month.goToday();
     setTodayTick((t) => t + 1);
   }, [month]);
 
-  // タブバーで「月間」タブをタップすると今日へスクロール (既に表示中でも)
   const navigation = useNavigation();
   useEffect(() => {
     const unsubscribe = navigation.addListener('tabPress' as any, () => {
@@ -41,41 +74,54 @@ export default function ScheduleScreen() {
     return unsubscribe;
   }, [navigation, handleToday]);
 
-  const handlePressDay = useCallback((iso: string) => {
-    setEditing(null);
-    setDefaultDate(iso);
-    setDefaultStartH(undefined);
-    setEditorOpen(true);
-  }, []);
+  const handlePressDay = useCallback(
+    (iso: string) => {
+      if (isShared) return; // 共有表示中は編集不可
+      setEditing(null);
+      setDefaultDate(iso);
+      setDefaultStartH(undefined);
+      setEditorOpen(true);
+    },
+    [isShared]
+  );
 
-  const handlePressEmpty = useCallback((date: string, hour: number) => {
-    setEditing(null);
-    setDefaultDate(date);
-    setDefaultStartH(hour);
-    setEditorOpen(true);
-  }, []);
+  const handlePressEmpty = useCallback(
+    (date: string, hour: number) => {
+      if (isShared) return; // 共有表示中は編集不可
+      setEditing(null);
+      setDefaultDate(date);
+      setDefaultStartH(hour);
+      setEditorOpen(true);
+    },
+    [isShared]
+  );
 
   const handlePressEvent = useCallback((ev: EventItem) => {
     setSelected(ev);
     setDetailOpen(true);
   }, []);
 
-  const handleEditFromDetail = useCallback((ev: EventItem) => {
-    setDetailOpen(false);
-    setTimeout(() => {
-      setEditing(ev);
-      setDefaultDate(undefined);
-      setDefaultStartH(undefined);
-      setEditorOpen(true);
-    }, 200);
-  }, []);
+  const handleEditFromDetail = useCallback(
+    (ev: EventItem) => {
+      if (isShared) return;
+      setDetailOpen(false);
+      setTimeout(() => {
+        setEditing(ev);
+        setDefaultDate(undefined);
+        setDefaultStartH(undefined);
+        setEditorOpen(true);
+      }, 200);
+    },
+    [isShared]
+  );
 
   const handleDeleteFromDetail = useCallback(
     (ev: EventItem) => {
+      if (isShared) return;
       events.removeEvent(ev.id);
       setDetailOpen(false);
     },
-    [events]
+    [events, isShared]
   );
 
   const handleSubmit = useCallback(
@@ -114,10 +160,13 @@ export default function ScheduleScreen() {
         theme={theme}
         onPrev={month.goPrev}
         onNext={month.goNext}
+        onSearch={() => setSearchOpen(true)}
+        onShare={() => setShareOpen(true)}
+        viewingName={activeShared?.name ?? null}
       />
       <MonthTimeGrid
         daysOfMonth={month.daysOfMonth}
-        eventsByDate={events.eventsByDate}
+        eventsByDate={displayEventsByDate}
         theme={theme}
         onPressDay={handlePressDay}
         onPressEvent={handlePressEvent}
@@ -133,6 +182,7 @@ export default function ScheduleScreen() {
         visible={detailOpen}
         event={selected}
         theme={theme}
+        readOnly={isShared}
         onClose={() => setDetailOpen(false)}
         onEdit={handleEditFromDetail}
         onDelete={handleDeleteFromDetail}
@@ -150,6 +200,38 @@ export default function ScheduleScreen() {
           setDefaultStartH(undefined);
         }}
         onSubmit={handleSubmit}
+      />
+
+      <EventSearchSheet
+        visible={searchOpen}
+        theme={theme}
+        events={isShared && activeShared ? activeShared.events : events.events}
+        onClose={() => setSearchOpen(false)}
+      />
+
+      <ScheduleShareSheet
+        visible={shareOpen}
+        theme={theme}
+        activeId={activeSharedId}
+        onClose={() => setShareOpen(false)}
+        onSelectSelf={() => {
+          setActiveSharedId(null);
+          setShareOpen(false);
+        }}
+        onSelectShared={(id) => {
+          setActiveSharedId(id);
+          setShareOpen(false);
+        }}
+        schedules={shared.schedules}
+        shareName={shared.shareName}
+        busy={shared.busy}
+        error={shared.error}
+        info={shared.info}
+        myEventCount={events.events.length}
+        onExport={(name) => shared.exportSchedule(events.events, name)}
+        onImport={shared.importSchedule}
+        onRemove={shared.removeSchedule}
+        onClearMessages={shared.clearMessages}
       />
     </View>
   );

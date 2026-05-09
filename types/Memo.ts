@@ -14,6 +14,14 @@ export interface Memo {
   title: string;
   body: string;
   attachments: MemoAttachment[];
+  folderId?: string | null;
   createdAt: number;
   updatedAt: number;
+}
+
+export interface MemoFolder {
+  id: string;
+  name: string;
+  color: string;
+  createdAt: number;
 }
