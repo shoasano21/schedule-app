@@ -45,14 +45,16 @@ workflows:
           set -e
           keychain initialize
 
-          # Step 1: 既存の Distribution Certificate (EAS作成、秘密鍵なし) を削除
-          CERT_IDS=$(app-store-connect certificates list \
-            --type IOS_DISTRIBUTION \
-            --json 2>/dev/null | jq -r '.[].id // empty')
-
-          for CERT_ID in $CERT_IDS; do
-            echo "Deleting distribution certificate $CERT_ID"
-            app-store-connect certificates delete "$CERT_ID" --ignore-not-found || true
+          # Step 1: Apple Distribution Certificate (DISTRIBUTION + IOS_DISTRIBUTION) を全削除
+          # 秘密鍵が無い既存certを残すと fetch-signing-files が409エラーになる
+          for CERT_TYPE in DISTRIBUTION IOS_DISTRIBUTION; do
+            CERT_IDS=$(app-store-connect certificates list \
+              --type "$CERT_TYPE" \
+              --json 2>/dev/null | jq -r '.[].id // empty')
+            for CERT_ID in $CERT_IDS; do
+              echo "Deleting $CERT_TYPE certificate $CERT_ID"
+              app-store-connect certificates delete "$CERT_ID" --ignore-not-found || true
+            done
           done
 
           # Step 2: 既存 App Store プロファイルも削除
@@ -69,8 +71,10 @@ workflows:
           echo "Waiting for Apple API to propagate deletions..."
           sleep 15
 
-          # Step 4: 削除後の状態を確認
-          echo "--- certificates after deletion ---"
+          # Step 4: 削除後の状態を確認 (両タイプ)
+          echo "--- DISTRIBUTION certs after deletion ---"
+          app-store-connect certificates list --type DISTRIBUTION --json || true
+          echo "--- IOS_DISTRIBUTION certs after deletion ---"
           app-store-connect certificates list --type IOS_DISTRIBUTION --json || true
 
           # Step 5: 明示的に秘密鍵を生成
