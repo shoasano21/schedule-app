@@ -12,6 +12,7 @@ import { useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { IAPProvider } from '../hooks/IAPContext';
+import { PreferencesProvider } from '../hooks/PreferencesContext';
 
 export default function RootLayout() {
   const scheme = useColorScheme();
@@ -27,12 +28,14 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <IAPProvider>
-          <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(tabs)" />
-          </Stack>
-        </IAPProvider>
+        <PreferencesProvider>
+          <IAPProvider>
+            <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="(tabs)" />
+            </Stack>
+          </IAPProvider>
+        </PreferencesProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

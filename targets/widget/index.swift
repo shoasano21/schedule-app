@@ -194,6 +194,85 @@ struct MediumView: View {
   }
 }
 
+struct LargeView: View {
+  let entry: CadenceEntry
+  var body: some View {
+    let now = currentHour()
+    let upcoming = Array(entry.events.filter { Double($0.endH) > now }.prefix(7))
+    let past = entry.events.filter { Double($0.endH) <= now }
+    return VStack(alignment: .leading, spacing: 8) {
+      HStack {
+        VStack(alignment: .leading, spacing: 2) {
+          Text(dayLabel())
+            .font(.system(size: 13, weight: .bold))
+            .foregroundColor(.secondary)
+          Text("今日の予定")
+            .font(.system(size: 22, weight: .heavy))
+            .foregroundColor(.primary)
+        }
+        Spacer()
+        VStack(alignment: .trailing, spacing: 0) {
+          Text("\(entry.events.count)")
+            .font(.system(size: 26, weight: .heavy))
+            .foregroundColor(Color(red: 0.039, green: 0.518, blue: 1.000))
+          Text("件")
+            .font(.system(size: 10, weight: .semibold))
+            .foregroundColor(.secondary)
+        }
+      }
+
+      Divider()
+
+      if upcoming.isEmpty && past.isEmpty {
+        Spacer()
+        VStack(spacing: 4) {
+          Text("今日の予定は完了！")
+            .font(.system(size: 16, weight: .semibold))
+            .foregroundColor(.primary)
+          Text("お疲れさまでした")
+            .font(.system(size: 12, weight: .medium))
+            .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        Spacer()
+      } else {
+        VStack(alignment: .leading, spacing: 6) {
+          ForEach(upcoming, id: \.id) { ev in
+            HStack(spacing: 10) {
+              RoundedRectangle(cornerRadius: 2)
+                .fill(eventColor(ev.color))
+                .frame(width: 4, height: 32)
+              VStack(alignment: .leading, spacing: 2) {
+                Text(ev.title)
+                  .font(.system(size: 14, weight: .semibold))
+                  .foregroundColor(.primary)
+                  .lineLimit(1)
+                HStack(spacing: 4) {
+                  Text("\(formatHour(ev.startH)) – \(formatHour(ev.endH))")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.secondary)
+                  if let loc = ev.location, !loc.isEmpty {
+                    Text("・")
+                      .font(.system(size: 11))
+                      .foregroundColor(.secondary)
+                    Text(loc)
+                      .font(.system(size: 11, weight: .medium))
+                      .foregroundColor(.secondary)
+                      .lineLimit(1)
+                  }
+                }
+              }
+              Spacer()
+            }
+          }
+        }
+        Spacer(minLength: 0)
+      }
+    }
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+  }
+}
+
 struct CadenceWidgetEntryView: View {
   var entry: CadenceProvider.Entry
   @Environment(\.widgetFamily) var family
@@ -203,6 +282,8 @@ struct CadenceWidgetEntryView: View {
       switch family {
       case .systemSmall:
         SmallView(entry: entry)
+      case .systemLarge:
+        LargeView(entry: entry)
       default:
         MediumView(entry: entry)
       }
@@ -221,6 +302,6 @@ struct CadenceTodayWidget: Widget {
     }
     .configurationDisplayName("今日の予定")
     .description("Cadence の今日の予定をホーム画面で確認")
-    .supportedFamilies([.systemSmall, .systemMedium])
+    .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
   }
 }

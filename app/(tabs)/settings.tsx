@@ -13,11 +13,14 @@ import {
   useColorScheme,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ACCENT_IDS, ACCENT_PRESETS, type AccentId } from '../../constants/accents';
 import { BottomSheet } from '../../components/BottomSheet';
 import { PaywallSheet } from '../../components/PaywallSheet';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { useIAPContext } from '../../hooks/IAPContext';
+import { usePreferences } from '../../hooks/PreferencesContext';
 import { useClassNotifications } from '../../hooks/useClassNotifications';
+import { useICSExport } from '../../hooks/useICSExport';
 import { useEvents } from '../../hooks/useEvents';
 import { useNotificationSettings } from '../../hooks/useNotificationSettings';
 import { useNotifyEnabled } from '../../hooks/useNotifyEnabled';
@@ -69,6 +72,17 @@ export default function SettingsScreen() {
   const [picker, setPicker] = useState<PickerKind>(null);
   const iap = useIAPContext();
   const [paywallOpen, setPaywallOpen] = useState(false);
+  const prefs = usePreferences();
+  const ics = useICSExport();
+
+  const handleExportICS = async () => {
+    if (!iap.isPro) {
+      setPaywallOpen(true);
+      return;
+    }
+    if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await ics.exportICS(events.events, `cadence-${new Date().toISOString().slice(0, 10)}.ics`);
+  };
 
   const [hStr, mStr] = settings.taskTime.split(':');
   const taskHour = Math.min(23, Math.max(0, Number(hStr) || 9));
@@ -216,6 +230,51 @@ export default function SettingsScreen() {
           />
         </Group>
 
+        <SectionHeader theme={theme} title="テーマカラー" />
+        <Group theme={theme}>
+          <View style={[styles.col, { opacity: iap.isPro ? 1 : 0.55 }]}>
+            <View style={styles.themeHeaderRow}>
+              <Text style={[styles.rowLabel, { color: theme.text }]}>アクセントカラー</Text>
+              {!iap.isPro ? (
+                <View style={[styles.proBadge, { backgroundColor: theme.accentBg }]}>
+                  <Text style={[styles.proBadgeText, { color: theme.accent }]}>PRO</Text>
+                </View>
+              ) : null}
+            </View>
+            <Text style={[styles.rowSub, { color: theme.textTertiary, marginBottom: 12 }]}>
+              アプリ全体のアクセントカラーを変更
+            </Text>
+            <View style={styles.swatchRow}>
+              {ACCENT_IDS.map((id) => {
+                const preset = ACCENT_PRESETS[id];
+                const variant = scheme === 'dark' ? preset.dark : preset.light;
+                const selected = prefs.accent === id;
+                return (
+                  <Pressable
+                    key={id}
+                    onPress={() => {
+                      if (Platform.OS !== 'web') void Haptics.selectionAsync();
+                      if (!iap.isPro) {
+                        setPaywallOpen(true);
+                        return;
+                      }
+                      prefs.setAccent(id);
+                    }}
+                    style={[
+                      styles.swatchOuter,
+                      selected && {
+                        borderColor: variant.fg,
+                      },
+                    ]}
+                  >
+                    <View style={[styles.swatch, { backgroundColor: variant.fg }]} />
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        </Group>
+
         <SectionHeader theme={theme} title="Pro" />
         <Group theme={theme}>
           <Pressable
@@ -245,6 +304,36 @@ export default function SettingsScreen() {
                 <Text style={[styles.proBadgeText, { color: theme.palette.green.fg }]}>
                   ご利用中
                 </Text>
+              </View>
+            ) : (
+              <Ionicons name="chevron-forward" size={16} color={theme.textTertiary} />
+            )}
+          </Pressable>
+
+          <Pressable
+            onPress={handleExportICS}
+            disabled={ics.busy}
+            style={({ pressed }) => [
+              styles.row,
+              {
+                borderTopColor: theme.separator,
+                borderTopWidth: StyleSheet.hairlineWidth,
+                opacity: ics.busy ? 0.5 : pressed ? 0.6 : 1,
+              },
+            ]}
+          >
+            <Ionicons name="download-outline" size={20} color={theme.text} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.rowLabel, { color: theme.text }]}>
+                カレンダー書き出し
+              </Text>
+              <Text style={[styles.rowSub, { color: theme.textTertiary }]}>
+                .ics 形式で iOS / Google カレンダーに連携
+              </Text>
+            </View>
+            {!iap.isPro ? (
+              <View style={[styles.proBadge, { backgroundColor: theme.accentBg }]}>
+                <Text style={[styles.proBadgeText, { color: theme.accent }]}>PRO</Text>
               </View>
             ) : (
               <Ionicons name="chevron-forward" size={16} color={theme.textTertiary} />
@@ -676,6 +765,10 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     gap: 12,
   },
+  col: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
   rowLabel: {
     fontSize: 16,
     fontWeight: '700',
@@ -695,6 +788,32 @@ const styles = StyleSheet.create({
   proBadgeText: {
     fontSize: 11,
     fontWeight: '700',
+    letterSpacing: 0.4,
+  },
+  themeHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  swatchRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  swatchOuter: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: 'transparent',
+  },
+  swatch: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
   },
   rowLabelOnly: {
     flex: 1,
