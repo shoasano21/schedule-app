@@ -33,6 +33,7 @@ import {
 } from '../../hooks/useTaskNotifications';
 import { useTasks } from '../../hooks/useTasks';
 import { useTheme } from '../../hooks/useTheme';
+import { useTomorrowPrepNotifications } from '../../hooks/useTomorrowPrep';
 import { useWidgetSync } from '../../hooks/useWidgetSync';
 
 const HOURS_OPTIONS = Array.from({ length: 24 }, (_, i) => i);
@@ -48,7 +49,14 @@ const LEAD_OPTIONS: { value: number; label: string }[] = [
   { value: 60, label: '1時間前' },
 ];
 
-type PickerKind = null | 'time' | 'classStart' | 'classEnd' | 'gridStart' | 'gridEnd';
+type PickerKind =
+  | null
+  | 'time'
+  | 'classStart'
+  | 'classEnd'
+  | 'gridStart'
+  | 'gridEnd'
+  | 'tomorrowPrep';
 
 export default function SettingsScreen() {
   const theme = useTheme();
@@ -68,6 +76,7 @@ export default function SettingsScreen() {
     settings.classEndLead,
     notifyEnabled
   );
+  useTomorrowPrepNotifications(events.events, settings.tomorrowPrepTime, notifyEnabled);
   // ホーム画面ウィジェット同期 (今日の予定を App Group に書き出し)
   useWidgetSync(events.events, events.hydrated);
 
@@ -279,6 +288,23 @@ export default function SettingsScreen() {
                 theme={theme}
                 value={leadLabel(settings.classEndLead)}
                 onPress={() => setPicker('classEnd')}
+                showCaret
+                disabled={!notifyEnabled}
+              />
+            }
+            disabled={!notifyEnabled}
+            divider
+          />
+          <Row
+            theme={theme}
+            icon="moon-outline"
+            label="明日の予定通知"
+            sub="毎晩、翌日の予定をプレビュー"
+            right={
+              <ValueBtn
+                theme={theme}
+                value={settings.tomorrowPrepTime ?? 'オフ'}
+                onPress={() => setPicker('tomorrowPrep')}
                 showCaret
                 disabled={!notifyEnabled}
               />
@@ -678,6 +704,38 @@ export default function SettingsScreen() {
             onChange={(v) => {
               const s = v > prefs.gridStartHour ? prefs.gridStartHour : Math.max(0, v - 1);
               prefs.setGridRange(s, v);
+            }}
+            theme={theme}
+            wrap
+          />
+        </View>
+      </BottomSheet>
+
+      <BottomSheet
+        visible={picker === 'tomorrowPrep'}
+        onClose={() => setPicker(null)}
+        theme={theme}
+        maxHeightRatio={0.5}
+      >
+        <PickerHeader theme={theme} title="明日の予定通知" onDone={() => setPicker(null)} />
+        <View style={pickerStyles.body}>
+          <PillScroll
+            options={[
+              { value: -1, label: 'オフ' },
+              ...[18, 19, 20, 21, 22, 23].map((h) => ({
+                value: h,
+                label: `${String(h).padStart(2, '0')}:00`,
+              })),
+            ]}
+            value={
+              settings.tomorrowPrepTime === null
+                ? -1
+                : Number(settings.tomorrowPrepTime.split(':')[0])
+            }
+            onChange={(v) => {
+              update({
+                tomorrowPrepTime: v === -1 ? null : `${String(v).padStart(2, '0')}:00`,
+              });
             }}
             theme={theme}
             wrap

@@ -7,12 +7,15 @@ export interface NotificationSettings {
   taskTime: string; // 'HH:MM' for the daily task reminder time
   classStartLead: number; // minutes before class start; -1 = off
   classEndLead: number; // minutes before class end (= prompt to register tasks); -1 = off
+  /** 「明日の予定」通知時刻 (HH:MM) または null (無効) */
+  tomorrowPrepTime: string | null;
 }
 
 export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   taskTime: '09:00',
   classStartLead: -1,
   classEndLead: -1,
+  tomorrowPrepTime: null,
 };
 
 const TIME_RE = /^([0-1]?\d|2[0-3]):([0-5]\d)$/;
@@ -23,6 +26,11 @@ function sanitize(raw: any): NotificationSettings {
     if (typeof raw.taskTime === 'string' && TIME_RE.test(raw.taskTime)) out.taskTime = raw.taskTime;
     if (typeof raw.classStartLead === 'number') out.classStartLead = raw.classStartLead;
     if (typeof raw.classEndLead === 'number') out.classEndLead = raw.classEndLead;
+    if (raw.tomorrowPrepTime === null) {
+      out.tomorrowPrepTime = null;
+    } else if (typeof raw.tomorrowPrepTime === 'string' && TIME_RE.test(raw.tomorrowPrepTime)) {
+      out.tomorrowPrepTime = raw.tomorrowPrepTime;
+    }
   }
   return out;
 }

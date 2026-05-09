@@ -3,6 +3,7 @@ import * as Haptics from 'expo-haptics';
 import React, { useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Theme } from '../constants/colors';
+import { useFocusMode } from '../hooks/useFocusMode';
 import type { StudySession } from '../types/StudySession';
 import { BottomSheet } from './BottomSheet';
 
@@ -36,6 +37,7 @@ export function PomodoroSheet({
   const startedAtRef = useRef<number>(0);
   const accumulatedRef = useRef<number>(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const focus = useFocusMode();
 
   useEffect(() => {
     if (!visible) {
@@ -101,6 +103,7 @@ export function PomodoroSheet({
       if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setPhase('idle');
       setRemaining(focusMin * 60);
+      focus.exit();
     }
   };
 
@@ -109,6 +112,7 @@ export function PomodoroSheet({
     startedAtRef.current = Date.now();
     setPhase('focus');
     setRemaining(focusMin * 60);
+    focus.enter();
     setTimeout(startTick, 50);
   };
 
@@ -139,6 +143,7 @@ export function PomodoroSheet({
     }
     setPhase('idle');
     setRemaining(focusMin * 60);
+    focus.exit();
   };
 
   const isRunning = !!intervalRef.current;
