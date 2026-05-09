@@ -7,7 +7,6 @@ import { ScreenHeader } from './ScreenHeader';
 
 interface Props {
   label: string;
-  monthOffset: number;
   theme: Theme;
   onPrev: () => void;
   onNext: () => void;

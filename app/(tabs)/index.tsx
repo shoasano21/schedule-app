@@ -111,7 +111,6 @@ export default function ScheduleScreen() {
     <View style={[styles.root, { backgroundColor: theme.bg, paddingTop: insets.top }]}>
       <MonthHeader
         label={month.label}
-        monthOffset={month.monthOffset}
         theme={theme}
         onPrev={month.goPrev}
         onNext={month.goNext}

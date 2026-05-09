@@ -364,33 +364,35 @@ export function TaskAddSheet({
               </View>
             </Section>
 
-            <Pressable
-              onPress={() => {
-                if (Platform.OS !== 'web') void Haptics.selectionAsync();
-                setDone((v) => !v);
-              }}
-              style={[
-                styles.doneRow,
-                {
-                  backgroundColor: done ? theme.palette.green.bg : theme.bgSecondary,
-                  borderColor: done ? theme.palette.green.fg : theme.separator,
-                },
-              ]}
-            >
-              <Ionicons
-                name={done ? 'checkmark-circle' : 'ellipse-outline'}
-                size={22}
-                color={done ? theme.palette.green.fg : theme.textTertiary}
-              />
-              <Text
+            {isEdit ? (
+              <Pressable
+                onPress={() => {
+                  if (Platform.OS !== 'web') void Haptics.selectionAsync();
+                  setDone((v) => !v);
+                }}
                 style={[
-                  styles.doneLabel,
-                  { color: done ? theme.palette.green.fg : theme.text },
+                  styles.doneRow,
+                  {
+                    backgroundColor: done ? theme.palette.green.bg : theme.bgSecondary,
+                    borderColor: done ? theme.palette.green.fg : theme.separator,
+                  },
                 ]}
               >
-                {done ? '完了' : '完了にする'}
-              </Text>
-            </Pressable>
+                <Ionicons
+                  name={done ? 'checkmark-circle' : 'ellipse-outline'}
+                  size={22}
+                  color={done ? theme.palette.green.fg : theme.textTertiary}
+                />
+                <Text
+                  style={[
+                    styles.doneLabel,
+                    { color: done ? theme.palette.green.fg : theme.text },
+                  ]}
+                >
+                  {done ? '完了済み' : '完了にする'}
+                </Text>
+              </Pressable>
+            ) : null}
 
             {error ? (
               <View style={[styles.errorRow, { backgroundColor: theme.palette.red.bg }]}>
