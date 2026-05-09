@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomSheet } from '../../components/BottomSheet';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { useClassNotifications } from '../../hooks/useClassNotifications';
+import { useEvents } from '../../hooks/useEvents';
 import { useNotificationSettings } from '../../hooks/useNotificationSettings';
 import { useNotifyEnabled } from '../../hooks/useNotifyEnabled';
 import { useSubjects } from '../../hooks/useSubjects';
@@ -25,6 +26,7 @@ import {
 } from '../../hooks/useTaskNotifications';
 import { useTasks } from '../../hooks/useTasks';
 import { useTheme } from '../../hooks/useTheme';
+import { useWidgetSync } from '../../hooks/useWidgetSync';
 
 const HOURS_OPTIONS = Array.from({ length: 24 }, (_, i) => i);
 const MINUTE_OPTIONS = [0, 15, 30, 45];
@@ -46,6 +48,7 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const scheme = useColorScheme();
   const { tasks } = useTasks();
+  const events = useEvents();
   const subjects = useSubjects();
   const { enabled: notifyEnabled, setEnabled: setNotifyEnabled } = useNotifyEnabled();
   const { settings, update } = useNotificationSettings();
@@ -58,6 +61,8 @@ export default function SettingsScreen() {
     settings.classEndLead,
     notifyEnabled
   );
+  // ホーム画面ウィジェット同期 (今日の予定を App Group に書き出し)
+  useWidgetSync(events.events, events.hydrated);
 
   const [picker, setPicker] = useState<PickerKind>(null);
 

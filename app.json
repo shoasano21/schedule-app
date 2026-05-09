@@ -18,6 +18,9 @@
       "bundleIdentifier": "com.shoasano.scheduleapp",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
+      },
+      "entitlements": {
+        "com.apple.security.application-groups": ["group.com.shoasano.scheduleapp"]
       }
     },
     "android": {
@@ -57,7 +60,8 @@
           "icon": "./assets/icon.png",
           "color": "#0A84FF"
         }
-      ]
+      ],
+      "@bacons/apple-targets"
     ],
     "experiments": {
       "typedRoutes": true

@@ -31,15 +31,11 @@ workflows:
       - name: Strip aps-environment entitlement (we only use local notifications)
         script: |
           set -e
-          ENTITLEMENTS_FILE=$(find ios -name "*.entitlements" | head -1)
-          echo "Found entitlements file: $ENTITLEMENTS_FILE"
-          if [ -n "$ENTITLEMENTS_FILE" ]; then
-            echo "--- before ---"
-            cat "$ENTITLEMENTS_FILE"
-            /usr/libexec/PlistBuddy -c "Delete :aps-environment" "$ENTITLEMENTS_FILE" 2>/dev/null || true
-            echo "--- after ---"
-            cat "$ENTITLEMENTS_FILE"
-          fi
+          for ENT in $(find ios -name "*.entitlements"); do
+            echo "--- $ENT ---"
+            /usr/libexec/PlistBuddy -c "Delete :aps-environment" "$ENT" 2>/dev/null || true
+            cat "$ENT"
+          done
       - name: Set up code signing (delete EAS cert, create fresh with explicit key)
         script: |
           set -e
@@ -57,14 +53,16 @@ workflows:
             done
           done
 
-          # Step 2: 既存 App Store プロファイルも削除
-          PROFILE_IDS=$(app-store-connect profiles list \
-            --bundle-id-identifier com.shoasano.scheduleapp \
-            --json 2>/dev/null \
-            | jq -r '.[] | select(.attributes.profileType == "IOS_APP_STORE") | .id')
-          for PROFILE_ID in $PROFILE_IDS; do
-            echo "Deleting profile $PROFILE_ID"
-            app-store-connect profiles delete "$PROFILE_ID" --ignore-not-found || true
+          # Step 2: 既存 App Store プロファイルを削除 (メイン + ウィジェット)
+          for BUNDLE in com.shoasano.scheduleapp com.shoasano.scheduleapp.widget; do
+            PROFILE_IDS=$(app-store-connect profiles list \
+              --bundle-id-identifier "$BUNDLE" \
+              --json 2>/dev/null \
+              | jq -r '.[] | select(.attributes.profileType == "IOS_APP_STORE") | .id')
+            for PROFILE_ID in $PROFILE_IDS; do
+              echo "Deleting profile $PROFILE_ID for $BUNDLE"
+              app-store-connect profiles delete "$PROFILE_ID" --ignore-not-found || true
+            done
           done
 
           # Step 3: Apple API の eventual consistency 対応
@@ -80,9 +78,17 @@ workflows:
           # Step 5: 明示的に秘密鍵を生成
           openssl genrsa -out /tmp/cert_private_key.pem 2048
 
-          # Step 6: 新規 cert + profile 作成（秘密鍵を明示指定）
+          # Step 6: 新規 cert + profile 作成（メインアプリ）
           app-store-connect fetch-signing-files \
             com.shoasano.scheduleapp \
+            --type IOS_APP_STORE \
+            --create \
+            --certificate-key=@file:/tmp/cert_private_key.pem
+
+          # Step 7: ウィジェット拡張ターゲットの cert + profile 作成
+          # @bacons/apple-targets が widget の bundle id を <main>.widget で生成する
+          app-store-connect fetch-signing-files \
+            com.shoasano.scheduleapp.widget \
             --type IOS_APP_STORE \
             --create \
             --certificate-key=@file:/tmp/cert_private_key.pem
