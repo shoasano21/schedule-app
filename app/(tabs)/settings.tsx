@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
+import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
   Alert,
@@ -196,6 +197,28 @@ export default function SettingsScreen() {
         contentContainerStyle={{ paddingBottom: 32 }}
         showsVerticalScrollIndicator={false}
       >
+        <SectionHeader theme={theme} title="学習" />
+        <Group theme={theme}>
+          <Pressable
+            onPress={() => {
+              if (Platform.OS !== 'web') void Haptics.selectionAsync();
+              router.push('/(tabs)/stats' as any);
+            }}
+            style={({ pressed }) => [styles.row, { opacity: pressed ? 0.6 : 1 }]}
+          >
+            <Ionicons name="flame-outline" size={20} color={theme.text} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.rowLabel, { color: theme.text }]}>
+                学習履歴 / Pomodoro
+              </Text>
+              <Text style={[styles.rowSub, { color: theme.textTertiary }]}>
+                集中タイマー、ストリーク、週次グラフ
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={theme.textTertiary} />
+          </Pressable>
+        </Group>
+
         <SectionHeader theme={theme} title="通知" />
         <Group theme={theme}>
           <Row

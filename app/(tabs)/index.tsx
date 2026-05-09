@@ -8,12 +8,14 @@ import { DetailSheet } from '../../components/DetailSheet';
 import { EventSearchSheet } from '../../components/EventSearchSheet';
 import { MonthHeader, type ViewMode } from '../../components/MonthHeader';
 import { MonthTimeGrid } from '../../components/MonthTimeGrid';
+import { PomodoroSheet } from '../../components/PomodoroSheet';
 import { ScheduleShareSheet } from '../../components/ScheduleShareSheet';
 import { usePreferences } from '../../hooks/PreferencesContext';
 import { useEvents } from '../../hooks/useEvents';
 import { useMonth } from '../../hooks/useMonth';
 import { useNowLine } from '../../hooks/useNowLine';
 import { useSharedSchedules } from '../../hooks/useSharedSchedules';
+import { useStudySessions } from '../../hooks/useStudySessions';
 import { useTheme } from '../../hooks/useTheme';
 import type { EventItem } from '../../types/Event';
 
@@ -38,6 +40,9 @@ export default function ScheduleScreen() {
   const [activeSharedId, setActiveSharedId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('month');
   const [dayDate, setDayDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [pomodoroOpen, setPomodoroOpen] = useState(false);
+  const [pomodoroEvent, setPomodoroEvent] = useState<EventItem | null>(null);
+  const studyLog = useStudySessions();
 
   // 取り込んだスケジュールが削除されたら自分に戻す
   useEffect(() => {
@@ -145,6 +150,12 @@ export default function ScheduleScreen() {
     },
     [events, isShared]
   );
+
+  const handleStartFocus = useCallback((ev: EventItem) => {
+    setPomodoroEvent(ev);
+    setDetailOpen(false);
+    setTimeout(() => setPomodoroOpen(true), 200);
+  }, []);
 
   const handleDuplicate = useCallback(
     (ev: EventItem, newDate: string) => {
@@ -259,6 +270,7 @@ export default function ScheduleScreen() {
         onEdit={handleEditFromDetail}
         onDelete={handleDeleteFromDetail}
         onDuplicate={handleDuplicate}
+        onStartFocus={isShared ? undefined : handleStartFocus}
       />
       <AddEventSheet
         visible={editorOpen}
@@ -280,6 +292,18 @@ export default function ScheduleScreen() {
         theme={theme}
         events={isShared && activeShared ? activeShared.events : events.events}
         onClose={() => setSearchOpen(false)}
+      />
+
+      <PomodoroSheet
+        visible={pomodoroOpen}
+        theme={theme}
+        initialTitle={pomodoroEvent?.title}
+        initialColor={pomodoroEvent?.color}
+        onClose={() => {
+          setPomodoroOpen(false);
+          setPomodoroEvent(null);
+        }}
+        onLog={studyLog.addSession}
       />
 
       <ScheduleShareSheet

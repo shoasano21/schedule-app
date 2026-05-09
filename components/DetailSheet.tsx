@@ -15,6 +15,7 @@ interface Props {
   onEdit: (event: EventItem) => void;
   onDelete: (event: EventItem) => void;
   onDuplicate?: (event: EventItem, newDate: string) => void;
+  onStartFocus?: (event: EventItem) => void;
 }
 
 export function DetailSheet({
@@ -26,6 +27,7 @@ export function DetailSheet({
   onEdit,
   onDelete,
   onDuplicate,
+  onStartFocus,
 }: Props) {
   const [showCopy, setShowCopy] = useState(false);
 
@@ -134,6 +136,18 @@ export function DetailSheet({
             </View>
           ) : (
             <>
+              {onStartFocus ? (
+                <Pressable
+                  onPress={() => onStartFocus(event)}
+                  style={({ pressed }) => [
+                    styles.focusBtn,
+                    { backgroundColor: theme.accent, opacity: pressed ? 0.85 : 1 },
+                  ]}
+                >
+                  <Ionicons name="flame" size={18} color="#fff" />
+                  <Text style={styles.focusBtnText}>この予定で集中する</Text>
+                </Pressable>
+              ) : null}
               <View style={styles.actions}>
                 <Pressable
                   onPress={() => onEdit(event)}
@@ -330,6 +344,20 @@ const styles = StyleSheet.create({
   readOnlyText: {
     fontSize: 13,
     fontWeight: '600',
+  },
+  focusBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginTop: 18,
+  },
+  focusBtnText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '800',
   },
   copyArea: {
     marginTop: 14,
