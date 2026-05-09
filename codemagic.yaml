@@ -106,9 +106,16 @@ workflows:
         script: |
           WORKSPACE_PATH=$(find ios -name "*.xcworkspace" -type d | head -1)
           SCHEME_NAME=$(basename "$WORKSPACE_PATH" .xcworkspace)
+          # 一覧で確認: 設定されているプロファイルとバンドルID
+          echo "--- workspace info ---"
+          xcodebuild -workspace "$WORKSPACE_PATH" -list || true
+          echo "--- entitlements files ---"
+          find ios -name "*.entitlements" -exec sh -c 'echo "=== $1 ==="; cat "$1"' sh {} \;
+          echo "--- starting verbose archive ---"
           xcode-project build-ipa \
             --workspace "$WORKSPACE_PATH" \
-            --scheme "$SCHEME_NAME"
+            --scheme "$SCHEME_NAME" \
+            --verbose
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
