@@ -13,9 +13,9 @@ import type { EventItem } from '../types/Event';
 import { END_HOUR, HOUR_HEIGHT, START_HOUR, formatHour } from '../utils/date';
 import { NowLine } from './NowLine';
 
-const TIME_AXIS_WIDTH = 52;
-const COL_WIDTH = 84;
-const HEADER_HEIGHT = 60;
+const TIME_AXIS_WIDTH = 44;
+const COL_WIDTH = 56;
+const HEADER_HEIGHT = 56;
 const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
 
 interface Props {
@@ -345,24 +345,24 @@ const styles = StyleSheet.create({
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    gap: 4,
+    paddingVertical: 6,
+    gap: 2,
   },
   headerDow: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
-    letterSpacing: 0.4,
+    letterSpacing: 0.2,
   },
   headerDayWrap: {
-    minWidth: 28,
-    height: 28,
-    borderRadius: 14,
-    paddingHorizontal: 6,
+    minWidth: 24,
+    height: 24,
+    borderRadius: 12,
+    paddingHorizontal: 4,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerDay: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
   },
@@ -404,24 +404,24 @@ const styles = StyleSheet.create({
   },
   eventBlock: {
     position: 'absolute',
-    left: 2,
-    right: 2,
-    borderRadius: 6,
+    left: 1,
+    right: 1,
+    borderRadius: 4,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
     flexDirection: 'row',
   },
   eventBar: {
-    width: 3,
+    width: 2,
   },
   eventContent: {
     flex: 1,
-    paddingHorizontal: 5,
+    paddingHorizontal: 3,
     paddingVertical: 2,
   },
   eventTitle: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
-    letterSpacing: 0.1,
+    letterSpacing: 0,
   },
 });
