@@ -39,32 +39,41 @@ workflows:
       - name: Fix share extension NSExtensionActivationRule
         script: |
           set -e
-          # Find share extension's Info.plist (avoid Pods, .app bundles)
-          SHARE_PLIST=$(find ios -name "Info.plist" \
-            ! -path "*Pods*" \
-            ! -path "*build*" \
-            ! -path "*.app/*" \
-            -exec sh -c 'grep -l "com.apple.share-services" "$1" >/dev/null && echo "$1"' sh {} \; | head -1)
 
-          if [ -z "$SHARE_PLIST" ]; then
-            echo "(no share extension Info.plist found, skipping)"
-            exit 0
+          echo "===== DEBUG: all Info.plist files (non-Pods/build/.app) ====="
+          find ios -name "Info.plist" \
+            ! -path "*Pods*" ! -path "*build*" ! -path "*.app/*" 2>/dev/null
+
+          echo "===== DEBUG: all share-related files ====="
+          find ios -iname "*share*" 2>/dev/null | head -30
+
+          # Find every Info.plist that references share-services and dump it
+          for plist in $(find ios -name "Info.plist" ! -path "*Pods*" ! -path "*build*" ! -path "*.app/*"); do
+            if grep -q "share-services\|NSExtensionPointIdentifier\|NSExtensionAttributes" "$plist" 2>/dev/null; then
+              echo "===== match: $plist ====="
+              cat "$plist"
+              # Apply fix
+              /usr/libexec/PlistBuddy -c "Delete :NSExtension:NSExtensionAttributes:NSExtensionActivationRule" "$plist" 2>/dev/null || true
+              /usr/libexec/PlistBuddy -c "Add :NSExtension:NSExtensionAttributes:NSExtensionActivationRule dict" "$plist"
+              /usr/libexec/PlistBuddy -c "Add :NSExtension:NSExtensionAttributes:NSExtensionActivationRule:NSExtensionActivationSupportsWebURLWithMaxCount integer 1" "$plist"
+              /usr/libexec/PlistBuddy -c "Add :NSExtension:NSExtensionAttributes:NSExtensionActivationRule:NSExtensionActivationSupportsText bool true" "$plist"
+              echo "===== after fix: $plist ====="
+              cat "$plist"
+            fi
+          done
+
+          # Check pbxproj for GENERATE_INFOPLIST_FILE / INFOPLIST_KEY_* settings on share target
+          echo "===== DEBUG: pbxproj share-related settings ====="
+          PBX="ios/Cadence.xcodeproj/project.pbxproj"
+          if [ -f "$PBX" ]; then
+            grep -nE "GENERATE_INFOPLIST_FILE|INFOPLIST_FILE|INFOPLIST_KEY_NSExtension" "$PBX" | head -50
+
+            # If the share target uses GENERATE_INFOPLIST_FILE=YES, replace TRUEPREDICATE rule
+            # via INFOPLIST_KEY_* build setting (only valid path for build-generated plists).
+            # Note: NSExtensionActivationRule isn't directly settable via INFOPLIST_KEY_*,
+            # so we instead force GENERATE_INFOPLIST_FILE = NO for share target if needed.
+            # We'll rely on the source Info.plist edit above.
           fi
-
-          echo "--- found: $SHARE_PLIST ---"
-          echo "--- before ---"
-          cat "$SHARE_PLIST"
-
-          # Delete existing rule (could be string TRUEPREDICATE or wrong dict)
-          /usr/libexec/PlistBuddy -c "Delete :NSExtension:NSExtensionAttributes:NSExtensionActivationRule" "$SHARE_PLIST" 2>/dev/null || true
-
-          # Add proper structured rule (URL + Text only — App Store compliant)
-          /usr/libexec/PlistBuddy -c "Add :NSExtension:NSExtensionAttributes:NSExtensionActivationRule dict" "$SHARE_PLIST"
-          /usr/libexec/PlistBuddy -c "Add :NSExtension:NSExtensionAttributes:NSExtensionActivationRule:NSExtensionActivationSupportsWebURLWithMaxCount integer 1" "$SHARE_PLIST"
-          /usr/libexec/PlistBuddy -c "Add :NSExtension:NSExtensionAttributes:NSExtensionActivationRule:NSExtensionActivationSupportsText bool true" "$SHARE_PLIST"
-
-          echo "--- after ---"
-          cat "$SHARE_PLIST"
       - name: Set up code signing (delete EAS cert, create fresh with explicit key)
         script: |
           set -e
