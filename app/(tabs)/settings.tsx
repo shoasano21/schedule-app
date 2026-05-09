@@ -18,6 +18,7 @@ import { ACCENT_IDS, ACCENT_PRESETS, type AccentId } from '../../constants/accen
 import { BottomSheet } from '../../components/BottomSheet';
 import { PaywallSheet } from '../../components/PaywallSheet';
 import { ScreenHeader } from '../../components/ScreenHeader';
+import { SyllabusImportSheet } from '../../components/SyllabusImportSheet';
 import { useIAPContext } from '../../hooks/IAPContext';
 import { usePreferences } from '../../hooks/PreferencesContext';
 import { useClassNotifications } from '../../hooks/useClassNotifications';
@@ -32,6 +33,7 @@ import {
   useTaskNotifications,
 } from '../../hooks/useTaskNotifications';
 import { useTasks } from '../../hooks/useTasks';
+import { useICSImport } from '../../hooks/useICSImport';
 import { useTheme } from '../../hooks/useTheme';
 import { useTomorrowPrepNotifications } from '../../hooks/useTomorrowPrep';
 import { useWidgetSync } from '../../hooks/useWidgetSync';
@@ -85,7 +87,20 @@ export default function SettingsScreen() {
   const [paywallOpen, setPaywallOpen] = useState(false);
   const prefs = usePreferences();
   const ics = useICSExport();
+  const icsImport = useICSImport();
   const backup = useBackup();
+  const [syllabusOpen, setSyllabusOpen] = useState(false);
+
+  const handleImportICS = async () => {
+    const list = await icsImport.pickAndParse();
+    if (!list) return;
+    let added = 0;
+    for (const item of list) {
+      events.addEvent(item);
+      added += 1;
+    }
+    icsImport.setInfo(`${added} 件の予定を取り込みました`);
+  };
 
   const handleExportICS = async () => {
     if (!iap.isPro) {
@@ -368,6 +383,23 @@ export default function SettingsScreen() {
           </View>
         </Group>
 
+        <SectionHeader theme={theme} title="天気" />
+        <Group theme={theme}>
+          <Row
+            theme={theme}
+            icon="partly-sunny-outline"
+            label="天気アイコンを表示"
+            sub="月間ヘッダーに毎日の天気 (東京・Open-Meteo・約14日先)"
+            right={
+              <ToggleBtn
+                theme={theme}
+                active={prefs.weatherEnabled}
+                onPress={() => prefs.setWeatherEnabled(!prefs.weatherEnabled)}
+              />
+            }
+          />
+        </Group>
+
         <SectionHeader theme={theme} title="月間グリッド表示時間" />
         <Group theme={theme}>
           <View style={styles.col}>
@@ -509,13 +541,54 @@ export default function SettingsScreen() {
                 .ics 形式で iOS / Google カレンダーに連携
               </Text>
             </View>
-            {!iap.isPro ? (
-              <View style={[styles.proBadge, { backgroundColor: theme.accentBg }]}>
-                <Text style={[styles.proBadgeText, { color: theme.accent }]}>PRO</Text>
-              </View>
-            ) : (
-              <Ionicons name="chevron-forward" size={16} color={theme.textTertiary} />
-            )}
+            <Ionicons name="chevron-forward" size={16} color={theme.textTertiary} />
+          </Pressable>
+
+          <Pressable
+            onPress={handleImportICS}
+            disabled={icsImport.busy}
+            style={({ pressed }) => [
+              styles.row,
+              {
+                borderTopColor: theme.separator,
+                borderTopWidth: StyleSheet.hairlineWidth,
+                opacity: icsImport.busy ? 0.5 : pressed ? 0.6 : 1,
+              },
+            ]}
+          >
+            <Ionicons name="cloud-download-outline" size={20} color={theme.text} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.rowLabel, { color: theme.text }]}>
+                カレンダー取り込み
+              </Text>
+              <Text style={[styles.rowSub, { color: theme.textTertiary }]}>
+                .ics ファイルから一括追加 (Apple/Google から書き出し)
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={theme.textTertiary} />
+          </Pressable>
+
+          <Pressable
+            onPress={() => setSyllabusOpen(true)}
+            style={({ pressed }) => [
+              styles.row,
+              {
+                borderTopColor: theme.separator,
+                borderTopWidth: StyleSheet.hairlineWidth,
+                opacity: pressed ? 0.6 : 1,
+              },
+            ]}
+          >
+            <Ionicons name="grid-outline" size={20} color={theme.text} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.rowLabel, { color: theme.text }]}>
+                時間割インポート
+              </Text>
+              <Text style={[styles.rowSub, { color: theme.textTertiary }]}>
+                CSV / TSV で曜日 + 時限 + 科目名を一括登録
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={theme.textTertiary} />
           </Pressable>
 
           <Pressable
@@ -580,6 +653,12 @@ export default function SettingsScreen() {
         ) : null}
         {backup.error ? (
           <Text style={[styles.infoText, { color: theme.palette.red.fg }]}>{backup.error}</Text>
+        ) : null}
+        {icsImport.info ? (
+          <Text style={[styles.infoText, { color: theme.palette.green.fg }]}>{icsImport.info}</Text>
+        ) : null}
+        {icsImport.error ? (
+          <Text style={[styles.infoText, { color: theme.palette.red.fg }]}>{icsImport.error}</Text>
         ) : null}
 
         <SectionHeader theme={theme} title="データ" />
@@ -742,6 +821,17 @@ export default function SettingsScreen() {
           />
         </View>
       </BottomSheet>
+
+      <SyllabusImportSheet
+        visible={syllabusOpen}
+        theme={theme}
+        onClose={() => setSyllabusOpen(false)}
+        onImport={(list) => {
+          for (const s of list) {
+            subjects.upsertSubject(s);
+          }
+        }}
+      />
 
       <PaywallSheet
         visible={paywallOpen}

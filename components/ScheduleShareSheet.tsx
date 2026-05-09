@@ -36,6 +36,9 @@ interface Props {
   ingestQRPayload: (text: string) => SharedSchedule | null;
   onRemove: (id: string) => void;
   onClearMessages: () => void;
+  overlayIds: Set<string>;
+  onToggleOverlay: (id: string) => void;
+  onOpenFreeFinder: () => void;
 }
 
 export function ScheduleShareSheet({
@@ -55,6 +58,9 @@ export function ScheduleShareSheet({
   ingestQRPayload,
   onRemove,
   onClearMessages,
+  overlayIds,
+  onToggleOverlay,
+  onOpenFreeFinder,
 }: Props) {
   const [nameDraft, setNameDraft] = useState('');
   const [qrPayload, setQRPayload] = useState<string | null>(null);
@@ -151,6 +157,8 @@ export function ScheduleShareSheet({
                 title={`${s.name} さん`}
                 subtitle={`${s.events.length} 件 ・ 取込: ${formatDate(s.importedAt)}`}
                 active={activeId === s.id}
+                overlayActive={overlayIds.has(s.id)}
+                onToggleOverlay={() => onToggleOverlay(s.id)}
                 onPress={() => {
                   if (Platform.OS !== 'web') void Haptics.selectionAsync();
                   onSelectShared(s.id);
@@ -158,6 +166,30 @@ export function ScheduleShareSheet({
                 onRemove={() => handleRemove(s)}
               />
             ))}
+
+            {schedules.length > 0 ? (
+              <Pressable
+                onPress={() => {
+                  if (Platform.OS !== 'web') void Haptics.selectionAsync();
+                  onOpenFreeFinder();
+                }}
+                style={({ pressed }) => [
+                  styles.actionBtn,
+                  styles.secondaryBtn,
+                  {
+                    backgroundColor: theme.bgSecondary,
+                    borderColor: theme.accent,
+                    opacity: pressed ? 0.85 : 1,
+                    marginTop: 8,
+                  },
+                ]}
+              >
+                <Ionicons name="time-outline" size={18} color={theme.accent} />
+                <Text style={[styles.actionBtnText, { color: theme.accent }]}>
+                  共通の空き時間を探す
+                </Text>
+              </Pressable>
+            ) : null}
 
             <View style={[styles.divider, { backgroundColor: theme.separator }]} />
 
@@ -263,6 +295,8 @@ function ScheduleRow({
   active,
   onPress,
   onRemove,
+  overlayActive,
+  onToggleOverlay,
 }: {
   theme: Theme;
   iconName: any;
@@ -271,6 +305,8 @@ function ScheduleRow({
   active: boolean;
   onPress: () => void;
   onRemove?: () => void;
+  overlayActive?: boolean;
+  onToggleOverlay?: () => void;
 }) {
   return (
     <Pressable
@@ -293,6 +329,28 @@ function ScheduleRow({
           {subtitle}
         </Text>
       </View>
+      {onToggleOverlay ? (
+        <Pressable
+          onPress={(e) => {
+            e.stopPropagation?.();
+            onToggleOverlay();
+          }}
+          hitSlop={6}
+          style={[
+            styles.overlayBtn,
+            {
+              backgroundColor: overlayActive ? theme.accent : 'transparent',
+              borderColor: overlayActive ? theme.accent : theme.separator,
+            },
+          ]}
+        >
+          <Ionicons
+            name="layers-outline"
+            size={14}
+            color={overlayActive ? '#fff' : theme.textTertiary}
+          />
+        </Pressable>
+      ) : null}
       {active ? (
         <Ionicons name="checkmark-circle" size={20} color={theme.accent} />
       ) : null}
@@ -374,6 +432,14 @@ const styles = StyleSheet.create({
   removeBtn: {
     padding: 4,
     marginLeft: 4,
+  },
+  overlayBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   divider: {
     height: StyleSheet.hairlineWidth,

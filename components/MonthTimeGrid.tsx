@@ -18,6 +18,12 @@ const COL_WIDTH = 56;
 const HEADER_HEIGHT = 56;
 const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
 
+export interface OverlayLayer {
+  id: string;
+  name: string;
+  events: EventItem[];
+}
+
 interface Props {
   daysOfMonth: MonthDay[];
   eventsByDate: Map<string, EventItem[]>;
@@ -35,6 +41,10 @@ interface Props {
   viewStartHour?: number;
   /** 表示終了時刻 (省略時は 24) */
   viewEndHour?: number;
+  /** 自分の予定の上に半透明で重ねる他人のスケジュール */
+  overlays?: OverlayLayer[];
+  /** 各日の天気アイコン (絵文字) を ISO 日付でマップ。省略時は非表示 */
+  weatherByDate?: Map<string, string>;
 }
 
 export function MonthTimeGrid({
@@ -52,7 +62,21 @@ export function MonthTimeGrid({
   bottomPadding = 0,
   viewStartHour = START_HOUR,
   viewEndHour = END_HOUR,
+  overlays = [],
+  weatherByDate,
 }: Props) {
+  // 各 overlay の events を date でインデックス
+  const overlayMaps = useMemo(() => {
+    return overlays.map((layer) => {
+      const m = new Map<string, EventItem[]>();
+      for (const e of layer.events) {
+        const arr = m.get(e.date) ?? [];
+        arr.push(e);
+        m.set(e.date, arr);
+      }
+      return { id: layer.id, name: layer.name, byDate: m };
+    });
+  }, [overlays]);
   const startH = Math.max(START_HOUR, Math.min(viewStartHour, END_HOUR - 1));
   const endH = Math.max(startH + 1, Math.min(viewEndHour, END_HOUR));
   const totalHeight = (endH - startH) * HOUR_HEIGHT;
@@ -182,6 +206,11 @@ export function MonthTimeGrid({
                       {d.day}
                     </Text>
                   </View>
+                  {weatherByDate?.get(d.iso) ? (
+                    <Text style={styles.headerWeather}>
+                      {weatherByDate.get(d.iso)}
+                    </Text>
+                  ) : null}
                 </Pressable>
               );
             })}
@@ -325,6 +354,35 @@ export function MonthTimeGrid({
                           </Pressable>
                         );
                       })}
+                      {/* 重ね表示: 共有された人の予定を細いストライプで右側に */}
+                      {overlayMaps.flatMap((layer, lIdx) =>
+                        (layer.byDate.get(d.iso) ?? [])
+                          .filter((ev) => ev.endH > startH && ev.startH < endH)
+                          .map((ev) => {
+                            const c = theme.palette[ev.color];
+                            const visStart = Math.max(ev.startH, startH);
+                            const visEnd = Math.min(ev.endH, endH);
+                            const top = (visStart - startH) * HOUR_HEIGHT + 1;
+                            const dur = Math.max(0.5, visEnd - visStart);
+                            const height = Math.max(18, dur * HOUR_HEIGHT - 2);
+                            return (
+                              <View
+                                key={`${layer.id}-${ev.id}`}
+                                pointerEvents="none"
+                                style={[
+                                  styles.overlayStripe,
+                                  {
+                                    top,
+                                    height,
+                                    backgroundColor: c.fg,
+                                    right: 1 + lIdx * 4,
+                                    opacity: 0.55,
+                                  },
+                                ]}
+                              />
+                            );
+                          })
+                      )}
                       {d.isToday && nowLineVisible ? (
                         <NowLine topPx={nowLineTop} theme={theme} />
                       ) : null}
@@ -364,6 +422,11 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.2,
+  },
+  headerWeather: {
+    fontSize: 11,
+    marginTop: 1,
+    lineHeight: 13,
   },
   headerDayWrap: {
     minWidth: 24,
@@ -422,6 +485,11 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
     flexDirection: 'row',
+  },
+  overlayStripe: {
+    position: 'absolute',
+    width: 3,
+    borderRadius: 1.5,
   },
   eventBar: {
     width: 2,

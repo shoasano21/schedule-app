@@ -13,6 +13,8 @@ interface Preferences {
   gridStartHour: number;
   /** 月間グリッドの表示終了時刻 (gridStartHour < gridEndHour <= 24) */
   gridEndHour: number;
+  /** 月間ヘッダーに天気アイコンを表示 (Open-Meteo, 東京) */
+  weatherEnabled: boolean;
 }
 
 const DEFAULTS: Preferences = {
@@ -20,12 +22,14 @@ const DEFAULTS: Preferences = {
   appearance: 'system',
   gridStartHour: 0,
   gridEndHour: 24,
+  weatherEnabled: false,
 };
 
 interface ContextValue extends Preferences {
   setAccent: (id: AccentId) => void;
   setAppearance: (mode: AppearanceMode) => void;
   setGridRange: (start: number, end: number) => void;
+  setWeatherEnabled: (v: boolean) => void;
   hydrated: boolean;
 }
 
@@ -35,6 +39,7 @@ const Context = createContext<ContextValue>({
   setAccent: () => {},
   setAppearance: () => {},
   setGridRange: () => {},
+  setWeatherEnabled: () => {},
 });
 
 export function PreferencesProvider({ children }: { children: React.ReactNode }) {
@@ -42,6 +47,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
   const [appearance, setAppearanceState] = useState<AppearanceMode>(DEFAULTS.appearance);
   const [gridStartHour, setGridStartState] = useState<number>(DEFAULTS.gridStartHour);
   const [gridEndHour, setGridEndState] = useState<number>(DEFAULTS.gridEndHour);
+  const [weatherEnabled, setWeatherState] = useState<boolean>(DEFAULTS.weatherEnabled);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -74,6 +80,9 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
               setGridStartState(parsed.gridStartHour);
               setGridEndState(parsed.gridEndHour);
             }
+            if (parsed && typeof parsed.weatherEnabled === 'boolean') {
+              setWeatherState(parsed.weatherEnabled);
+            }
           } catch {}
         }
       })
@@ -86,9 +95,9 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
   }, []);
 
   const persist = useCallback((next: Partial<Preferences>) => {
-    const merged = { accent, appearance, gridStartHour, gridEndHour, ...next };
+    const merged = { accent, appearance, gridStartHour, gridEndHour, weatherEnabled, ...next };
     AsyncStorage.setItem(KEY, JSON.stringify(merged)).catch(() => {});
-  }, [accent, appearance, gridStartHour, gridEndHour]);
+  }, [accent, appearance, gridStartHour, gridEndHour, weatherEnabled]);
 
   const setAccent = useCallback((id: AccentId) => {
     setAccentState(id);
@@ -107,6 +116,11 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
     persist({ gridStartHour: start, gridEndHour: end });
   }, [persist]);
 
+  const setWeatherEnabled = useCallback((v: boolean) => {
+    setWeatherState(v);
+    persist({ weatherEnabled: v });
+  }, [persist]);
+
   return (
     <Context.Provider
       value={{
@@ -114,9 +128,11 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
         appearance,
         gridStartHour,
         gridEndHour,
+        weatherEnabled,
         setAccent,
         setAppearance,
         setGridRange,
+        setWeatherEnabled,
         hydrated,
       }}
     >

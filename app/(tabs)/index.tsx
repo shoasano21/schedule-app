@@ -6,6 +6,7 @@ import { AddEventSheet, type AddEventInput } from '../../components/AddEventShee
 import { DayTimeGrid } from '../../components/DayTimeGrid';
 import { DetailSheet } from '../../components/DetailSheet';
 import { EventSearchSheet } from '../../components/EventSearchSheet';
+import { FreeFinderSheet } from '../../components/FreeFinderSheet';
 import { MonthHeader, type ViewMode } from '../../components/MonthHeader';
 import { MonthTimeGrid } from '../../components/MonthTimeGrid';
 import { PomodoroSheet } from '../../components/PomodoroSheet';
@@ -17,6 +18,7 @@ import { useNowLine } from '../../hooks/useNowLine';
 import { useSharedSchedules } from '../../hooks/useSharedSchedules';
 import { useStudySessions } from '../../hooks/useStudySessions';
 import { useTheme } from '../../hooks/useTheme';
+import { useWeather, weatherEmoji } from '../../hooks/useWeather';
 import type { EventItem } from '../../types/Event';
 
 export default function ScheduleScreen() {
@@ -24,7 +26,17 @@ export default function ScheduleScreen() {
   const insets = useSafeAreaInsets();
   const month = useMonth();
   const events = useEvents();
-  const { gridStartHour, gridEndHour } = usePreferences();
+  const { gridStartHour, gridEndHour, weatherEnabled } = usePreferences();
+  const weather = useWeather(weatherEnabled);
+  const weatherByDate = useMemo(() => {
+    const m = new Map<string, string>();
+    if (!weatherEnabled) return m;
+    for (const [date, w] of weather.byDate) {
+      const e = weatherEmoji(w.code);
+      if (e) m.set(date, e);
+    }
+    return m;
+  }, [weather.byDate, weatherEnabled]);
   const now = useNowLine(gridStartHour, gridEndHour);
   const shared = useSharedSchedules();
 
@@ -43,13 +55,30 @@ export default function ScheduleScreen() {
   const [pomodoroOpen, setPomodoroOpen] = useState(false);
   const [pomodoroEvent, setPomodoroEvent] = useState<EventItem | null>(null);
   const studyLog = useStudySessions();
+  // 重ねて表示する共有スケジュールの id 集合
+  const [overlayIds, setOverlayIds] = useState<Set<string>>(new Set());
+  const [freeFinderOpen, setFreeFinderOpen] = useState(false);
 
   // 取り込んだスケジュールが削除されたら自分に戻す
   useEffect(() => {
     if (activeSharedId && !shared.schedules.some((s) => s.id === activeSharedId)) {
       setActiveSharedId(null);
     }
+    // overlay 集合からも削除済みのものを取り除く
+    setOverlayIds((prev) => {
+      const valid = new Set(shared.schedules.map((s) => s.id));
+      const next = new Set([...prev].filter((id) => valid.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
   }, [activeSharedId, shared.schedules]);
+
+  // 自分のスケジュール表示中のみ重ねを有効。共有表示中は重ねない
+  const overlays = useMemo(() => {
+    if (activeSharedId) return [];
+    return shared.schedules
+      .filter((s) => overlayIds.has(s.id))
+      .map((s) => ({ id: s.id, name: s.name, events: s.events }));
+  }, [shared.schedules, overlayIds, activeSharedId]);
 
   const activeShared = activeSharedId
     ? shared.schedules.find((s) => s.id === activeSharedId) ?? null
@@ -246,6 +275,8 @@ export default function ScheduleScreen() {
           todayTick={todayTick}
           viewStartHour={gridStartHour}
           viewEndHour={gridEndHour}
+          overlays={overlays}
+          weatherByDate={weatherByDate}
         />
       ) : (
         <DayTimeGrid
@@ -329,6 +360,27 @@ export default function ScheduleScreen() {
         ingestQRPayload={shared.ingestQRPayload}
         onRemove={shared.removeSchedule}
         onClearMessages={shared.clearMessages}
+        overlayIds={overlayIds}
+        onToggleOverlay={(id) =>
+          setOverlayIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+          })
+        }
+        onOpenFreeFinder={() => {
+          setShareOpen(false);
+          setTimeout(() => setFreeFinderOpen(true), 200);
+        }}
+      />
+
+      <FreeFinderSheet
+        visible={freeFinderOpen}
+        theme={theme}
+        myEvents={events.events}
+        schedules={shared.schedules}
+        onClose={() => setFreeFinderOpen(false)}
       />
     </View>
   );
