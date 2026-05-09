@@ -2,12 +2,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { Platform } from 'react-native';
-import { useIAPContext } from '../../hooks/IAPContext';
 import { useTheme } from '../../hooks/useTheme';
 
 export default function TabsLayout() {
   const theme = useTheme();
-  const { isPro } = useIAPContext();
 
   return (
     <Tabs
@@ -56,14 +54,19 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="countdown"
+        options={{
+          title: 'カウントダウン',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="flag" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="stats"
         options={{
-          title: '記録',
-          // Pro でない時はタブバーから非表示
-          href: isPro ? undefined : null,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="stats-chart" size={size} color={color} />
-          ),
+          // 旧記録タブは非表示
+          href: null,
         }}
       />
       <Tabs.Screen

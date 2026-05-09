@@ -3,9 +3,10 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AddEventSheet, type AddEventInput } from '../../components/AddEventSheet';
+import { DayTimeGrid } from '../../components/DayTimeGrid';
 import { DetailSheet } from '../../components/DetailSheet';
 import { EventSearchSheet } from '../../components/EventSearchSheet';
-import { MonthHeader } from '../../components/MonthHeader';
+import { MonthHeader, type ViewMode } from '../../components/MonthHeader';
 import { MonthTimeGrid } from '../../components/MonthTimeGrid';
 import { ScheduleShareSheet } from '../../components/ScheduleShareSheet';
 import { usePreferences } from '../../hooks/PreferencesContext';
@@ -35,6 +36,8 @@ export default function ScheduleScreen() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [activeSharedId, setActiveSharedId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('month');
+  const [dayDate, setDayDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
 
   // 取り込んだスケジュールが削除されたら自分に戻す
   useEffect(() => {
@@ -143,6 +146,24 @@ export default function ScheduleScreen() {
     [events, isShared]
   );
 
+  const handleDuplicate = useCallback(
+    (ev: EventItem, newDate: string) => {
+      if (isShared) return;
+      events.addEvent({
+        title: ev.title,
+        date: newDate,
+        startH: ev.startH,
+        endH: ev.endH,
+        color: ev.color,
+        location: ev.location,
+        memo: ev.memo,
+        // pinned/repeat はコピーしない (重複カウントダウンや繰り返しの暴走を避ける)
+      });
+      setDetailOpen(false);
+    },
+    [events, isShared]
+  );
+
   const handleSubmit = useCallback(
     (input: AddEventInput) => {
       const baseData = {
@@ -173,30 +194,61 @@ export default function ScheduleScreen() {
   return (
     <View style={[styles.root, { backgroundColor: theme.bg, paddingTop: insets.top }]}>
       <MonthHeader
-        label={month.label}
+        label={viewMode === 'day' ? formatDayLabel(dayDate) : month.label}
         theme={theme}
-        onPrev={month.goPrev}
-        onNext={month.goNext}
+        onPrev={
+          viewMode === 'day'
+            ? () => setDayDate((d) => shiftISODate(d, -1))
+            : month.goPrev
+        }
+        onNext={
+          viewMode === 'day'
+            ? () => setDayDate((d) => shiftISODate(d, 1))
+            : month.goNext
+        }
         onSearch={() => setSearchOpen(true)}
         onShare={() => setShareOpen(true)}
         viewingName={activeShared?.name ?? null}
         countdown={nextCountdown}
+        viewMode={viewMode}
+        onChangeViewMode={(m) => {
+          setViewMode(m);
+          if (m === 'day') {
+            // 月表示中なら今日にスナップ、すでに日表示なら維持
+            const todayISO = new Date().toISOString().slice(0, 10);
+            if (!dayDate) setDayDate(todayISO);
+          }
+        }}
       />
-      <MonthTimeGrid
-        daysOfMonth={month.daysOfMonth}
-        eventsByDate={displayEventsByDate}
-        theme={theme}
-        onPressDay={handlePressDay}
-        onPressEvent={handlePressEvent}
-        onPressEmpty={handlePressEmpty}
-        nowLineTop={now.topPx}
-        nowLineVisible={now.visible}
-        nowFractionalHour={now.hourFloat}
-        monthKey={month.label}
-        todayTick={todayTick}
-        viewStartHour={gridStartHour}
-        viewEndHour={gridEndHour}
-      />
+      {viewMode === 'month' ? (
+        <MonthTimeGrid
+          daysOfMonth={month.daysOfMonth}
+          eventsByDate={displayEventsByDate}
+          theme={theme}
+          onPressDay={handlePressDay}
+          onPressEvent={handlePressEvent}
+          onPressEmpty={handlePressEmpty}
+          nowLineTop={now.topPx}
+          nowLineVisible={now.visible}
+          nowFractionalHour={now.hourFloat}
+          monthKey={month.label}
+          todayTick={todayTick}
+          viewStartHour={gridStartHour}
+          viewEndHour={gridEndHour}
+        />
+      ) : (
+        <DayTimeGrid
+          date={dayDate}
+          isToday={dayDate === new Date().toISOString().slice(0, 10)}
+          events={displayEventsByDate.get(dayDate) ?? []}
+          theme={theme}
+          onPressEvent={handlePressEvent}
+          onPressEmpty={handlePressEmpty}
+          nowFractionalHour={now.hourFloat}
+          viewStartHour={gridStartHour}
+          viewEndHour={gridEndHour}
+        />
+      )}
 
       <DetailSheet
         visible={detailOpen}
@@ -206,6 +258,7 @@ export default function ScheduleScreen() {
         onClose={() => setDetailOpen(false)}
         onEdit={handleEditFromDetail}
         onDelete={handleDeleteFromDetail}
+        onDuplicate={handleDuplicate}
       />
       <AddEventSheet
         visible={editorOpen}
@@ -255,6 +308,18 @@ export default function ScheduleScreen() {
       />
     </View>
   );
+}
+
+function shiftISODate(iso: string, days: number): string {
+  const d = new Date(iso + 'T00:00:00');
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function formatDayLabel(iso: string): string {
+  const d = new Date(iso + 'T00:00:00');
+  const wd = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()];
+  return `${d.getMonth() + 1}月${d.getDate()}日 (${wd})`;
 }
 
 const styles = StyleSheet.create({

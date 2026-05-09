@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
-import { Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { Theme } from '../constants/colors';
 import type { EventItem } from '../types/Event';
-import { fromISODate } from '../utils/date';
+import { fromISODate, toISODate } from '../utils/date';
 import { BottomSheet } from './BottomSheet';
 
 interface Props {
@@ -14,9 +14,43 @@ interface Props {
   onClose: () => void;
   onEdit: (event: EventItem) => void;
   onDelete: (event: EventItem) => void;
+  onDuplicate?: (event: EventItem, newDate: string) => void;
 }
 
-export function DetailSheet({ visible, event, theme, readOnly, onClose, onEdit, onDelete }: Props) {
+export function DetailSheet({
+  visible,
+  event,
+  theme,
+  readOnly,
+  onClose,
+  onEdit,
+  onDelete,
+  onDuplicate,
+}: Props) {
+  const [showCopy, setShowCopy] = useState(false);
+
+  React.useEffect(() => {
+    if (!visible) setShowCopy(false);
+  }, [visible]);
+
+  const dateOptions = React.useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return Array.from({ length: 60 }, (_, i) => {
+      const d = new Date(today);
+      d.setDate(today.getDate() + i);
+      return {
+        iso: toISODate(d),
+        label:
+          i === 0
+            ? '今日'
+            : i === 1
+            ? '明日'
+            : `${d.getMonth() + 1}/${d.getDate()}`,
+        dow: ['日', '月', '火', '水', '木', '金', '土'][d.getDay()],
+      };
+    });
+  }, []);
   const handleDelete = (ev: EventItem) => {
     const isRecurring = !!ev.repeat || !!ev.baseId;
     if (!isRecurring) {
@@ -99,36 +133,99 @@ export function DetailSheet({ visible, event, theme, readOnly, onClose, onEdit, 
               </Text>
             </View>
           ) : (
-            <View style={styles.actions}>
-              <Pressable
-                onPress={() => onEdit(event)}
-                style={({ pressed }) => [
-                  styles.actionBtn,
-                  {
-                    backgroundColor: theme.accentBg,
-                    opacity: pressed ? 0.7 : 1,
-                  },
-                ]}
-              >
-                <Ionicons name="create-outline" size={18} color={theme.accent} />
-                <Text style={[styles.actionLabel, { color: theme.accent }]}>編集</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => handleDelete(event)}
-                style={({ pressed }) => [
-                  styles.actionBtn,
-                  {
-                    backgroundColor: theme.palette.red.bg,
-                    opacity: pressed ? 0.7 : 1,
-                  },
-                ]}
-              >
-                <Ionicons name="trash-outline" size={18} color={theme.palette.red.fg} />
-                <Text style={[styles.actionLabel, { color: theme.palette.red.fg }]}>
-                  削除
-                </Text>
-              </Pressable>
-            </View>
+            <>
+              <View style={styles.actions}>
+                <Pressable
+                  onPress={() => onEdit(event)}
+                  style={({ pressed }) => [
+                    styles.actionBtn,
+                    { backgroundColor: theme.accentBg, opacity: pressed ? 0.7 : 1 },
+                  ]}
+                >
+                  <Ionicons name="create-outline" size={18} color={theme.accent} />
+                  <Text style={[styles.actionLabel, { color: theme.accent }]}>編集</Text>
+                </Pressable>
+                {onDuplicate ? (
+                  <Pressable
+                    onPress={() => setShowCopy((v) => !v)}
+                    style={({ pressed }) => [
+                      styles.actionBtn,
+                      {
+                        backgroundColor: showCopy ? theme.accent : theme.bgSecondary,
+                        opacity: pressed ? 0.7 : 1,
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name="copy-outline"
+                      size={18}
+                      color={showCopy ? '#fff' : theme.text}
+                    />
+                    <Text
+                      style={[
+                        styles.actionLabel,
+                        { color: showCopy ? '#fff' : theme.text },
+                      ]}
+                    >
+                      コピー
+                    </Text>
+                  </Pressable>
+                ) : null}
+                <Pressable
+                  onPress={() => handleDelete(event)}
+                  style={({ pressed }) => [
+                    styles.actionBtn,
+                    { backgroundColor: theme.palette.red.bg, opacity: pressed ? 0.7 : 1 },
+                  ]}
+                >
+                  <Ionicons name="trash-outline" size={18} color={theme.palette.red.fg} />
+                  <Text style={[styles.actionLabel, { color: theme.palette.red.fg }]}>
+                    削除
+                  </Text>
+                </Pressable>
+              </View>
+
+              {showCopy && onDuplicate ? (
+                <View style={styles.copyArea}>
+                  <Text style={[styles.copyLabel, { color: theme.textTertiary }]}>
+                    別の日にコピー
+                  </Text>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.copyDateRow}
+                  >
+                    {dateOptions
+                      .filter((d) => d.iso !== event.date)
+                      .map((d) => (
+                        <Pressable
+                          key={d.iso}
+                          onPress={() => {
+                            onDuplicate(event, d.iso);
+                            setShowCopy(false);
+                          }}
+                          style={[
+                            styles.copyChip,
+                            {
+                              backgroundColor: theme.bgSecondary,
+                              borderColor: theme.separator,
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={[styles.copyChipDow, { color: theme.textTertiary }]}
+                          >
+                            {d.dow}
+                          </Text>
+                          <Text style={[styles.copyChipDate, { color: theme.text }]}>
+                            {d.label}
+                          </Text>
+                        </Pressable>
+                      ))}
+                  </ScrollView>
+                </View>
+              ) : null}
+            </>
           )}
         </View>
       ) : null}
@@ -233,5 +330,37 @@ const styles = StyleSheet.create({
   readOnlyText: {
     fontSize: 13,
     fontWeight: '600',
+  },
+  copyArea: {
+    marginTop: 14,
+  },
+  copyLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+    marginBottom: 8,
+  },
+  copyDateRow: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingRight: 12,
+  },
+  copyChip: {
+    minWidth: 56,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  copyChipDow: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  copyChipDate: {
+    fontSize: 13,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+    marginTop: 2,
   },
 });

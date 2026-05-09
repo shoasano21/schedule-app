@@ -5,6 +5,8 @@ import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Theme } from '../constants/colors';
 import { ScreenHeader } from './ScreenHeader';
 
+export type ViewMode = 'month' | 'day';
+
 interface Props {
   label: string;
   theme: Theme;
@@ -14,6 +16,8 @@ interface Props {
   onShare?: () => void;
   viewingName?: string | null;
   countdown?: { title: string; days: number } | null;
+  viewMode?: ViewMode;
+  onChangeViewMode?: (mode: ViewMode) => void;
 }
 
 export function MonthHeader({
@@ -25,6 +29,8 @@ export function MonthHeader({
   onShare,
   viewingName,
   countdown,
+  viewMode = 'month',
+  onChangeViewMode,
 }: Props) {
   const press = (cb: () => void) => () => {
     if (Platform.OS !== 'web') void Haptics.selectionAsync();
@@ -41,10 +47,46 @@ export function MonthHeader({
       }}
     >
       <ScreenHeader
-        title="月間スケジュール"
+        title={viewMode === 'day' ? '日表示' : '月間スケジュール'}
         theme={theme}
         rightExtra={
           <View style={styles.rightRow}>
+            {onChangeViewMode ? (
+              <View style={[styles.viewToggle, { backgroundColor: theme.bgSecondary, borderColor: theme.separator }]}>
+                <Pressable
+                  onPress={press(() => onChangeViewMode('month'))}
+                  style={[
+                    styles.viewToggleBtn,
+                    viewMode === 'month' && { backgroundColor: theme.accent },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.viewToggleText,
+                      { color: viewMode === 'month' ? '#fff' : theme.text },
+                    ]}
+                  >
+                    月
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={press(() => onChangeViewMode('day'))}
+                  style={[
+                    styles.viewToggleBtn,
+                    viewMode === 'day' && { backgroundColor: theme.accent },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.viewToggleText,
+                      { color: viewMode === 'day' ? '#fff' : theme.text },
+                    ]}
+                  >
+                    日
+                  </Text>
+                </Pressable>
+              </View>
+            ) : null}
             {onShare ? (
               <Pressable
                 onPress={press(onShare)}
@@ -149,7 +191,24 @@ const styles = StyleSheet.create({
   rightRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
+  },
+  viewToggle: {
+    flexDirection: 'row',
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 2,
+  },
+  viewToggleBtn: {
+    minWidth: 28,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 9,
+    alignItems: 'center',
+  },
+  viewToggleText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   iconBtn: {
     width: 36,
