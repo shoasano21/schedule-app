@@ -1,0 +1,32 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0A84FF"/>
+      <stop offset="55%" stop-color="#3F73F8"/>
+      <stop offset="100%" stop-color="#5E5CE6"/>
+    </linearGradient>
+    <radialGradient id="dotGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FF453A" stop-opacity="0.45"/>
+      <stop offset="60%" stop-color="#FF453A" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#FF453A" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+
+  <!-- subtle glow behind dot -->
+  <circle cx="780" cy="512" r="180" fill="url(#dotGlow)"/>
+
+  <!-- White C arc -->
+  <path
+    d="M 685 339 A 245 245 0 1 0 685 685"
+    fill="none"
+    stroke="white"
+    stroke-width="96"
+    stroke-linecap="round"
+  />
+
+  <!-- Red pulse dot (NowLine の赤を反映) -->
+  <circle cx="780" cy="512" r="42" fill="#FF453A"/>
+  <circle cx="780" cy="512" r="42" fill="none" stroke="white" stroke-width="6" stroke-opacity="0.9"/>
+</svg>
