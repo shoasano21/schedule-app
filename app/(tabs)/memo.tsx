@@ -14,17 +14,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MemoEditorSheet } from '../../components/MemoEditorSheet';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { useMemos } from '../../hooks/useMemos';
-import { buildMemoFromShare, usePendingShares } from '../../hooks/usePendingShares';
 import { useTheme } from '../../hooks/useTheme';
 import type { Memo, MemoAttachment } from '../../types/Memo';
 
 export default function MemoScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { memos, createMemo, updateMemo, removeMemo, insertMemos } = useMemos();
-
-  // 共有シートから受け取った URL をメモとして取り込む
-  usePendingShares(insertMemos, buildMemoFromShare);
+  const { memos, createMemo, updateMemo, removeMemo } = useMemos();
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);

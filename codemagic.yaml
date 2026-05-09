@@ -36,44 +36,6 @@ workflows:
             /usr/libexec/PlistBuddy -c "Delete :aps-environment" "$ENT" 2>/dev/null || true
             cat "$ENT"
           done
-      - name: Fix share extension NSExtensionActivationRule
-        script: |
-          set -e
-
-          echo "===== DEBUG: all Info.plist files (non-Pods/build/.app) ====="
-          find ios -name "Info.plist" \
-            ! -path "*Pods*" ! -path "*build*" ! -path "*.app/*" 2>/dev/null
-
-          echo "===== DEBUG: all share-related files ====="
-          find ios -iname "*share*" 2>/dev/null | head -30
-
-          # Find every Info.plist that references share-services and dump it
-          for plist in $(find ios -name "Info.plist" ! -path "*Pods*" ! -path "*build*" ! -path "*.app/*"); do
-            if grep -q "share-services\|NSExtensionPointIdentifier\|NSExtensionAttributes" "$plist" 2>/dev/null; then
-              echo "===== match: $plist ====="
-              cat "$plist"
-              # Apply fix
-              /usr/libexec/PlistBuddy -c "Delete :NSExtension:NSExtensionAttributes:NSExtensionActivationRule" "$plist" 2>/dev/null || true
-              /usr/libexec/PlistBuddy -c "Add :NSExtension:NSExtensionAttributes:NSExtensionActivationRule dict" "$plist"
-              /usr/libexec/PlistBuddy -c "Add :NSExtension:NSExtensionAttributes:NSExtensionActivationRule:NSExtensionActivationSupportsWebURLWithMaxCount integer 1" "$plist"
-              /usr/libexec/PlistBuddy -c "Add :NSExtension:NSExtensionAttributes:NSExtensionActivationRule:NSExtensionActivationSupportsText bool true" "$plist"
-              echo "===== after fix: $plist ====="
-              cat "$plist"
-            fi
-          done
-
-          # Check pbxproj for GENERATE_INFOPLIST_FILE / INFOPLIST_KEY_* settings on share target
-          echo "===== DEBUG: pbxproj share-related settings ====="
-          PBX="ios/Cadence.xcodeproj/project.pbxproj"
-          if [ -f "$PBX" ]; then
-            grep -nE "GENERATE_INFOPLIST_FILE|INFOPLIST_FILE|INFOPLIST_KEY_NSExtension" "$PBX" | head -50
-
-            # If the share target uses GENERATE_INFOPLIST_FILE=YES, replace TRUEPREDICATE rule
-            # via INFOPLIST_KEY_* build setting (only valid path for build-generated plists).
-            # Note: NSExtensionActivationRule isn't directly settable via INFOPLIST_KEY_*,
-            # so we instead force GENERATE_INFOPLIST_FILE = NO for share target if needed.
-            # We'll rely on the source Info.plist edit above.
-          fi
       - name: Set up code signing (delete EAS cert, create fresh with explicit key)
         script: |
           set -e
@@ -91,8 +53,8 @@ workflows:
             done
           done
 
-          # Step 2: 既存 App Store プロファイルを削除 (メイン + ウィジェット + シェア)
-          for BUNDLE in com.shoasano.scheduleapp com.shoasano.scheduleapp.widget com.shoasano.scheduleapp.share; do
+          # Step 2: 既存 App Store プロファイルを削除 (メイン + ウィジェット)
+          for BUNDLE in com.shoasano.scheduleapp com.shoasano.scheduleapp.widget; do
             PROFILE_IDS=$(app-store-connect profiles list \
               --bundle-id-identifier "$BUNDLE" \
               --json 2>/dev/null \
@@ -126,13 +88,6 @@ workflows:
           # Step 7: ウィジェット拡張ターゲットの profile 作成
           app-store-connect fetch-signing-files \
             com.shoasano.scheduleapp.widget \
-            --type IOS_APP_STORE \
-            --create \
-            --certificate-key=@file:/tmp/cert_private_key.pem
-
-          # Step 8: 共有拡張ターゲットの profile 作成
-          app-store-connect fetch-signing-files \
-            com.shoasano.scheduleapp.share \
             --type IOS_APP_STORE \
             --create \
             --certificate-key=@file:/tmp/cert_private_key.pem
