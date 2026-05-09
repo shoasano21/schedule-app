@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cadence</title>
+<style>
+  :root {
+    --accent: #0A84FF;
+    --text: #1c1c1e;
+    --text-secondary: #6c6c70;
+    --bg-grad-1: #0A84FF;
+    --bg-grad-2: #5E5CE6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif;
+    margin: 0;
+    background: linear-gradient(135deg, var(--bg-grad-1), var(--bg-grad-2));
+    min-height: 100vh;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .wrap {
+    text-align: center;
+    padding: 40px 24px;
+    max-width: 540px;
+  }
+  .logo {
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 24px;
+    border-radius: 28px;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 64px;
+    font-weight: 800;
+    letter-spacing: -2px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.18);
+  }
+  h1 {
+    font-size: 40px;
+    margin: 0 0 8px;
+    letter-spacing: -1px;
+    font-weight: 800;
+  }
+  .tag {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 16px;
+    margin: 0 0 32px;
+    letter-spacing: 0.2px;
+  }
+  .links {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .links a {
+    display: block;
+    padding: 14px 24px;
+    background: rgba(255, 255, 255, 0.18);
+    color: white;
+    text-decoration: none;
+    border-radius: 14px;
+    font-size: 15px;
+    font-weight: 600;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transition: background 0.15s;
+  }
+  .links a:hover {
+    background: rgba(255, 255, 255, 0.28);
+  }
+  footer {
+    margin-top: 48px;
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">C</div>
+  <h1>Cadence</h1>
+  <p class="tag">学生のための月間スケジュール + 課題管理 + メモ</p>
+  <div class="links">
+    <a href="privacy.html">プライバシーポリシー</a>
+    <a href="https://github.com/shoasano21/schedule-app">GitHub リポジトリ</a>
+    <a href="mailto:sho.asano.0921@gmail.com">サポートに連絡</a>
+  </div>
+  <footer>© 2026 Sho Asano</footer>
+</div>
+</body>
+</html>
