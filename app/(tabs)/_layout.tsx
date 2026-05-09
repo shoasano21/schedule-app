@@ -2,10 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { Platform } from 'react-native';
+import { useIAPContext } from '../../hooks/IAPContext';
 import { useTheme } from '../../hooks/useTheme';
 
 export default function TabsLayout() {
   const theme = useTheme();
+  const { isPro } = useIAPContext();
 
   return (
     <Tabs
@@ -54,16 +56,21 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="stats"
+        options={{
+          title: '記録',
+          // Pro でない時はタブバーから非表示
+          href: isPro ? undefined : null,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="stats-chart" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{
           title: '設定',
           tabBarIcon: ({ color, size }) => <Ionicons name="settings" size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="stats"
-        options={{
-          href: null,
         }}
       />
       <Tabs.Screen

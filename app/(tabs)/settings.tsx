@@ -14,7 +14,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomSheet } from '../../components/BottomSheet';
+import { PaywallSheet } from '../../components/PaywallSheet';
 import { ScreenHeader } from '../../components/ScreenHeader';
+import { useIAPContext } from '../../hooks/IAPContext';
 import { useClassNotifications } from '../../hooks/useClassNotifications';
 import { useEvents } from '../../hooks/useEvents';
 import { useNotificationSettings } from '../../hooks/useNotificationSettings';
@@ -65,6 +67,8 @@ export default function SettingsScreen() {
   useWidgetSync(events.events, events.hydrated);
 
   const [picker, setPicker] = useState<PickerKind>(null);
+  const iap = useIAPContext();
+  const [paywallOpen, setPaywallOpen] = useState(false);
 
   const [hStr, mStr] = settings.taskTime.split(':');
   const taskHour = Math.min(23, Math.max(0, Number(hStr) || 9));
@@ -212,6 +216,42 @@ export default function SettingsScreen() {
           />
         </Group>
 
+        <SectionHeader theme={theme} title="Pro" />
+        <Group theme={theme}>
+          <Pressable
+            onPress={() => {
+              if (Platform.OS !== 'web') void Haptics.selectionAsync();
+              setPaywallOpen(true);
+            }}
+            style={({ pressed }) => [styles.row, { opacity: pressed ? 0.6 : 1 }]}
+          >
+            <Ionicons
+              name={iap.isPro ? 'sparkles' : 'sparkles-outline'}
+              size={20}
+              color={theme.accent}
+            />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.rowLabel, { color: theme.text }]}>
+                {iap.isPro ? 'Cadence Pro' : 'Cadence Pro にアップグレード'}
+              </Text>
+              <Text style={[styles.rowSub, { color: theme.textTertiary }]}>
+                {iap.isPro
+                  ? 'すべての Pro 機能を利用中'
+                  : '記録ダッシュボード・テーマ・iCloud 同期など'}
+              </Text>
+            </View>
+            {iap.isPro ? (
+              <View style={[styles.proBadge, { backgroundColor: theme.palette.green.bg }]}>
+                <Text style={[styles.proBadgeText, { color: theme.palette.green.fg }]}>
+                  ご利用中
+                </Text>
+              </View>
+            ) : (
+              <Ionicons name="chevron-forward" size={16} color={theme.textTertiary} />
+            )}
+          </Pressable>
+        </Group>
+
         <SectionHeader theme={theme} title="データ" />
         <Group theme={theme}>
           <Pressable
@@ -292,6 +332,24 @@ export default function SettingsScreen() {
           />
         </View>
       </BottomSheet>
+
+      <PaywallSheet
+        visible={paywallOpen}
+        theme={theme}
+        isPro={iap.isPro}
+        product={iap.product}
+        busy={iap.busy}
+        error={iap.error}
+        onClose={() => setPaywallOpen(false)}
+        onPurchase={async () => {
+          const ok = await iap.purchase();
+          if (ok) setPaywallOpen(false);
+        }}
+        onRestore={async () => {
+          const ok = await iap.restore();
+          if (ok) setPaywallOpen(false);
+        }}
+      />
     </View>
   );
 }
@@ -628,6 +686,15 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginTop: 3,
     lineHeight: 16,
+  },
+  proBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  proBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
   rowLabelOnly: {
     flex: 1,
