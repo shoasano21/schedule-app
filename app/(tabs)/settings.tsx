@@ -20,6 +20,7 @@ import { ScreenHeader } from '../../components/ScreenHeader';
 import { useIAPContext } from '../../hooks/IAPContext';
 import { usePreferences } from '../../hooks/PreferencesContext';
 import { useClassNotifications } from '../../hooks/useClassNotifications';
+import { useBackup } from '../../hooks/useBackup';
 import { useICSExport } from '../../hooks/useICSExport';
 import { useEvents } from '../../hooks/useEvents';
 import { useNotificationSettings } from '../../hooks/useNotificationSettings';
@@ -74,6 +75,7 @@ export default function SettingsScreen() {
   const [paywallOpen, setPaywallOpen] = useState(false);
   const prefs = usePreferences();
   const ics = useICSExport();
+  const backup = useBackup();
 
   const handleExportICS = async () => {
     if (!iap.isPro) {
@@ -82,6 +84,48 @@ export default function SettingsScreen() {
     }
     if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await ics.exportICS(events.events, `cadence-${new Date().toISOString().slice(0, 10)}.ics`);
+  };
+
+  const handleBackup = async () => {
+    if (!iap.isPro) {
+      setPaywallOpen(true);
+      return;
+    }
+    if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await backup.exportBackup();
+  };
+
+  const handleRestore = async () => {
+    if (!iap.isPro) {
+      setPaywallOpen(true);
+      return;
+    }
+    if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (Platform.OS === 'web') {
+      const ok = window.confirm(
+        'バックアップを読み込みます。既存のデータは上書きされます。続行しますか？'
+      );
+      if (!ok) return;
+      await backup.importBackup();
+      return;
+    }
+    Alert.alert(
+      'バックアップを読み込む',
+      '既存のデータは上書きされます。続行しますか？',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '続行',
+          style: 'destructive',
+          onPress: async () => {
+            const ok = await backup.importBackup();
+            if (ok) {
+              Alert.alert('復元完了', 'データを復元しました。アプリを再起動してください');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const [hStr, mStr] = settings.taskTime.split(':');
@@ -339,7 +383,70 @@ export default function SettingsScreen() {
               <Ionicons name="chevron-forward" size={16} color={theme.textTertiary} />
             )}
           </Pressable>
+
+          <Pressable
+            onPress={handleBackup}
+            disabled={backup.busy}
+            style={({ pressed }) => [
+              styles.row,
+              {
+                borderTopColor: theme.separator,
+                borderTopWidth: StyleSheet.hairlineWidth,
+                opacity: backup.busy ? 0.5 : pressed ? 0.6 : 1,
+              },
+            ]}
+          >
+            <Ionicons name="cloud-upload-outline" size={20} color={theme.text} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.rowLabel, { color: theme.text }]}>バックアップを書き出し</Text>
+              <Text style={[styles.rowSub, { color: theme.textTertiary }]}>
+                すべてのデータを JSON で保存（機種変更時に便利）
+              </Text>
+            </View>
+            {!iap.isPro ? (
+              <View style={[styles.proBadge, { backgroundColor: theme.accentBg }]}>
+                <Text style={[styles.proBadgeText, { color: theme.accent }]}>PRO</Text>
+              </View>
+            ) : (
+              <Ionicons name="chevron-forward" size={16} color={theme.textTertiary} />
+            )}
+          </Pressable>
+
+          <Pressable
+            onPress={handleRestore}
+            disabled={backup.busy}
+            style={({ pressed }) => [
+              styles.row,
+              {
+                borderTopColor: theme.separator,
+                borderTopWidth: StyleSheet.hairlineWidth,
+                opacity: backup.busy ? 0.5 : pressed ? 0.6 : 1,
+              },
+            ]}
+          >
+            <Ionicons name="cloud-download-outline" size={20} color={theme.text} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.rowLabel, { color: theme.text }]}>バックアップから復元</Text>
+              <Text style={[styles.rowSub, { color: theme.textTertiary }]}>
+                書き出した JSON ファイルを読み込んで復元
+              </Text>
+            </View>
+            {!iap.isPro ? (
+              <View style={[styles.proBadge, { backgroundColor: theme.accentBg }]}>
+                <Text style={[styles.proBadgeText, { color: theme.accent }]}>PRO</Text>
+              </View>
+            ) : (
+              <Ionicons name="chevron-forward" size={16} color={theme.textTertiary} />
+            )}
+          </Pressable>
         </Group>
+
+        {backup.info ? (
+          <Text style={[styles.infoText, { color: theme.palette.green.fg }]}>{backup.info}</Text>
+        ) : null}
+        {backup.error ? (
+          <Text style={[styles.infoText, { color: theme.palette.red.fg }]}>{backup.error}</Text>
+        ) : null}
 
         <SectionHeader theme={theme} title="データ" />
         <Group theme={theme}>
@@ -814,6 +921,13 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
+  },
+  infoText: {
+    paddingHorizontal: 24,
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: -10,
+    marginBottom: 18,
   },
   rowLabelOnly: {
     flex: 1,
