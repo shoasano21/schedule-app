@@ -11,10 +11,9 @@ interface Props {
   theme: Theme;
   onPrev: () => void;
   onNext: () => void;
-  onToday: () => void;
 }
 
-export function MonthHeader({ label, monthOffset, theme, onPrev, onNext, onToday }: Props) {
+export function MonthHeader({ label, theme, onPrev, onNext }: Props) {
   const press = (cb: () => void) => () => {
     if (Platform.OS !== 'web') void Haptics.selectionAsync();
     cb();
@@ -30,18 +29,6 @@ export function MonthHeader({ label, monthOffset, theme, onPrev, onNext, onToday
       <ScreenHeader
         title="月間スケジュール"
         theme={theme}
-        rightExtra={
-          <Pressable
-            onPress={press(onToday)}
-            hitSlop={10}
-            style={({ pressed }) => [
-              styles.todayPill,
-              { backgroundColor: theme.accent, opacity: pressed ? 0.85 : 1 },
-            ]}
-          >
-            <Text style={styles.todayPillText}>今日</Text>
-          </Pressable>
-        }
         bottom={
           <View style={styles.navRow}>
             <Pressable onPress={press(onPrev)} hitSlop={10} style={styles.navBtn}>
@@ -59,18 +46,6 @@ export function MonthHeader({ label, monthOffset, theme, onPrev, onNext, onToday
 }
 
 const styles = StyleSheet.create({
-  todayPill: {
-    paddingHorizontal: 14,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  todayPillText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#fff',
-  },
   navRow: {
     flexDirection: 'row',
     alignItems: 'center',

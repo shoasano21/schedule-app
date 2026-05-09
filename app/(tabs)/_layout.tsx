@@ -9,7 +9,6 @@ export default function TabsLayout() {
 
   return (
     <Tabs
-      initialRouteName="schedule"
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: theme.accent,
@@ -28,7 +27,7 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen
-        name="schedule"
+        name="index"
         options={{
           title: '月間',
           tabBarIcon: ({ color, size }) => (

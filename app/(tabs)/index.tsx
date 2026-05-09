@@ -1,4 +1,5 @@
-import React, { useCallback, useState } from 'react';
+import { useNavigation } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AddEventSheet, type AddEventInput } from '../../components/AddEventSheet';
@@ -30,6 +31,15 @@ export default function ScheduleScreen() {
     month.goToday();
     setTodayTick((t) => t + 1);
   }, [month]);
+
+  // タブバーで「月間」タブをタップすると今日へスクロール (既に表示中でも)
+  const navigation = useNavigation();
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('tabPress' as any, () => {
+      handleToday();
+    });
+    return unsubscribe;
+  }, [navigation, handleToday]);
 
   const handlePressDay = useCallback((iso: string) => {
     setEditing(null);
@@ -105,7 +115,6 @@ export default function ScheduleScreen() {
         theme={theme}
         onPrev={month.goPrev}
         onNext={month.goNext}
-        onToday={handleToday}
       />
       <MonthTimeGrid
         daysOfMonth={month.daysOfMonth}
