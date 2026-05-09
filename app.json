@@ -14,7 +14,7 @@
       "backgroundColor": "#0A84FF"
     },
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.shoasano.scheduleapp",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
