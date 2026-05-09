@@ -1,4 +1,4 @@
-export type AttachmentKind = 'url' | 'image' | 'pdf' | 'file';
+export type AttachmentKind = 'url' | 'image' | 'pdf' | 'file' | 'audio';
 
 export interface MemoAttachment {
   id: string;
@@ -7,6 +7,8 @@ export interface MemoAttachment {
   name: string;
   mimeType?: string;
   size?: number;
+  /** 音声ファイルの再生時間 (秒) */
+  durationSec?: number;
 }
 
 export interface Memo {

@@ -58,6 +58,12 @@
         }
       ],
       [
+        "expo-av",
+        {
+          "microphonePermission": "メモに音声を添付するため、マイクへのアクセスを許可してください。"
+        }
+      ],
+      [
         "expo-document-picker",
         {
           "iCloudContainerEnvironment": "Production"

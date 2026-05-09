@@ -475,7 +475,7 @@ function escapeRegex(s: string) {
 }
 
 function countAttachments(list: MemoAttachment[]) {
-  const c = { url: 0, image: 0, pdf: 0, file: 0, total: list.length };
+  const c = { url: 0, image: 0, pdf: 0, file: 0, audio: 0, total: list.length };
   for (const a of list) c[a.kind] += 1;
   return c;
 }

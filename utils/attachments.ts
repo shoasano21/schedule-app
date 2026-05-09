@@ -89,6 +89,26 @@ export async function pickDocumentAttachment(filter: 'pdf' | 'any' = 'any'): Pro
   };
 }
 
+/**
+ * 録音 → 音声添付に変換 (uri をアプリ管理ディレクトリへコピー)。
+ * 呼び出し側で expo-av の Recording を停止して uri を取得する想定。
+ */
+export async function audioAttachmentFromRecording(
+  recordingUri: string,
+  durationSec: number
+): Promise<MemoAttachment> {
+  const name = `voice-${new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-')}.m4a`;
+  const uri = await copyToAppDir(recordingUri, name);
+  return {
+    id: makeAttachmentId(),
+    kind: 'audio',
+    uri,
+    name,
+    mimeType: 'audio/mp4',
+    durationSec,
+  };
+}
+
 export function makeUrlAttachment(rawUrl: string): MemoAttachment | null {
   const url = rawUrl.trim();
   if (!url) return null;

@@ -14,7 +14,9 @@ import {
 } from 'react-native';
 import type { Theme } from '../constants/colors';
 import type { Memo, MemoAttachment, MemoFolder } from '../types/Memo';
+import { useAudioRecorder } from '../hooks/useAudioRecorder';
 import {
+  audioAttachmentFromRecording,
   deleteAttachmentFile,
   makeUrlAttachment,
   openAttachment,
@@ -52,6 +54,7 @@ export function MemoEditorSheet({
   const [showNewFolderInput, setShowNewFolderInput] = useState(false);
   const [folderDraft, setFolderDraft] = useState('');
   const [tagDraft, setTagDraft] = useState('');
+  const recorder = useAudioRecorder();
 
   useEffect(() => {
     if (!visible || !memo) return;
@@ -143,6 +146,19 @@ export function MemoEditorSheet({
       }
     } finally {
       setBusy(false);
+    }
+  };
+
+  const handleToggleRecord = async () => {
+    if (recorder.state.recording) {
+      const result = await recorder.stop();
+      if (result && result.uri) {
+        const att = await audioAttachmentFromRecording(result.uri, result.durationSec);
+        addAttachment(att);
+        if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } else {
+      await recorder.start();
     }
   };
 
@@ -427,6 +443,18 @@ export function MemoEditorSheet({
               onPress={handleAddPdf}
               disabled={busy}
             />
+            {recorder.supported ? (
+              <ActionBtn
+                icon={recorder.state.recording ? 'stop-circle' : 'mic-outline'}
+                label={
+                  recorder.state.recording
+                    ? `録音 ${recorder.state.durationSec}s`
+                    : '音声'
+                }
+                theme={theme}
+                onPress={handleToggleRecord}
+              />
+            ) : null}
             <ActionBtn
               icon="folder-outline"
               label="その他"
@@ -541,6 +569,8 @@ function AttachmentRow({
                     ? theme.palette.blue.bg
                     : att.kind === 'pdf'
                     ? theme.palette.red.bg
+                    : att.kind === 'audio'
+                    ? theme.palette.purple.bg
                     : theme.palette.gray.bg,
               },
             ]}
@@ -551,6 +581,8 @@ function AttachmentRow({
                   ? 'link'
                   : att.kind === 'pdf'
                   ? 'document-text'
+                  : att.kind === 'audio'
+                  ? 'mic'
                   : 'document'
               }
               size={18}
@@ -559,6 +591,8 @@ function AttachmentRow({
                   ? theme.palette.blue.fg
                   : att.kind === 'pdf'
                   ? theme.palette.red.fg
+                  : att.kind === 'audio'
+                  ? theme.palette.purple.fg
                   : theme.palette.gray.fg
               }
             />
@@ -575,6 +609,8 @@ function AttachmentRow({
               ? 'PDF'
               : att.kind === 'image'
               ? '画像'
+              : att.kind === 'audio'
+              ? `音声 ${att.durationSec ?? '?'} 秒`
               : 'ファイル'}
           </Text>
         </View>

@@ -273,6 +273,68 @@ struct LargeView: View {
   }
 }
 
+// MARK: - Lock Screen Views (iOS 16+) -----------------------------------------
+
+@available(iOS 16.0, *)
+struct LockInlineView: View {
+  let entry: CadenceEntry
+  var body: some View {
+    let next = nextEvent(entry.events)
+    if let n = next {
+      Text("\(formatHour(n.startH)) \(n.title)")
+    } else {
+      Text("予定なし")
+    }
+  }
+}
+
+@available(iOS 16.0, *)
+struct LockRectangularView: View {
+  let entry: CadenceEntry
+  var body: some View {
+    let now = currentHour()
+    let upcoming = Array(entry.events.filter { Double($0.endH) > now }.prefix(2))
+    return VStack(alignment: .leading, spacing: 2) {
+      Text(dayLabel())
+        .font(.system(size: 10, weight: .bold))
+      if let first = upcoming.first {
+        Text(first.title)
+          .font(.system(size: 12, weight: .heavy))
+          .lineLimit(1)
+        Text("\(formatHour(first.startH))–\(formatHour(first.endH))")
+          .font(.system(size: 10, weight: .semibold))
+        if upcoming.count > 1 {
+          let next = upcoming[1]
+          Text("次: \(formatHour(next.startH)) \(next.title)")
+            .font(.system(size: 9, weight: .medium))
+            .lineLimit(1)
+        }
+      } else {
+        Text("予定なし")
+          .font(.system(size: 12, weight: .semibold))
+      }
+    }
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+  }
+}
+
+@available(iOS 16.0, *)
+struct LockCircularView: View {
+  let entry: CadenceEntry
+  var body: some View {
+    let remaining = entry.events.filter { Double($0.endH) > currentHour() }.count
+    return ZStack {
+      AccessoryWidgetBackground()
+      VStack(spacing: -2) {
+        Text("\(remaining)")
+          .font(.system(size: 22, weight: .heavy))
+        Text("件")
+          .font(.system(size: 8, weight: .semibold))
+      }
+    }
+  }
+}
+
 struct CadenceWidgetEntryView: View {
   var entry: CadenceProvider.Entry
   @Environment(\.widgetFamily) var family
@@ -284,6 +346,20 @@ struct CadenceWidgetEntryView: View {
         SmallView(entry: entry)
       case .systemLarge:
         LargeView(entry: entry)
+#if canImport(WidgetKit)
+      case .accessoryInline:
+        if #available(iOS 16.0, *) {
+          LockInlineView(entry: entry)
+        } else { Text(entry.events.first?.title ?? "予定なし") }
+      case .accessoryRectangular:
+        if #available(iOS 16.0, *) {
+          LockRectangularView(entry: entry)
+        } else { Text(entry.events.first?.title ?? "予定なし") }
+      case .accessoryCircular:
+        if #available(iOS 16.0, *) {
+          LockCircularView(entry: entry)
+        } else { Text("\(entry.events.count)") }
+#endif
       default:
         MediumView(entry: entry)
       }
@@ -301,7 +377,15 @@ struct CadenceTodayWidget: Widget {
       CadenceWidgetEntryView(entry: entry)
     }
     .configurationDisplayName("今日の予定")
-    .description("Cadence の今日の予定をホーム画面で確認")
-    .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+    .description("Cadence の今日の予定をホーム画面 / ロック画面で確認")
+    .supportedFamilies(supportedFamiliesForOS())
   }
+}
+
+private func supportedFamiliesForOS() -> [WidgetFamily] {
+  var f: [WidgetFamily] = [.systemSmall, .systemMedium, .systemLarge]
+  if #available(iOS 16.0, *) {
+    f.append(contentsOf: [.accessoryInline, .accessoryRectangular, .accessoryCircular])
+  }
+  return f
 }
