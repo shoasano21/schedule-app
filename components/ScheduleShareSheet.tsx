@@ -12,8 +12,11 @@ import {
   View,
 } from 'react-native';
 import type { Theme } from '../constants/colors';
+import type { EventItem } from '../types/Event';
 import type { SharedSchedule } from '../types/SharedSchedule';
 import { BottomSheet } from './BottomSheet';
+import { QRScanModal } from './QRScanModal';
+import { QRShareModal } from './QRShareModal';
 
 interface Props {
   visible: boolean;
@@ -25,12 +28,12 @@ interface Props {
 
   schedules: SharedSchedule[];
   shareName: string;
+  myEvents: EventItem[];
   busy: boolean;
   error: string | null;
   info: string | null;
-  myEventCount: number;
-  onExport: (name: string) => Promise<boolean>;
-  onImport: () => Promise<SharedSchedule | null>;
+  prepareQRPayload: (events: EventItem[], name: string) => { qr: string | null; tooLarge: boolean };
+  ingestQRPayload: (text: string) => SharedSchedule | null;
   onRemove: (id: string) => void;
   onClearMessages: () => void;
 }
@@ -44,16 +47,20 @@ export function ScheduleShareSheet({
   onSelectShared,
   schedules,
   shareName,
+  myEvents,
   busy,
   error,
   info,
-  myEventCount,
-  onExport,
-  onImport,
+  prepareQRPayload,
+  ingestQRPayload,
   onRemove,
   onClearMessages,
 }: Props) {
   const [nameDraft, setNameDraft] = useState('');
+  const [qrPayload, setQRPayload] = useState<string | null>(null);
+  const [qrTooLarge, setQRTooLarge] = useState(false);
+  const [qrModalOpen, setQRModalOpen] = useState(false);
+  const [scanModalOpen, setScanModalOpen] = useState(false);
 
   useEffect(() => {
     if (visible) {
@@ -62,16 +69,24 @@ export function ScheduleShareSheet({
     }
   }, [visible, shareName, onClearMessages]);
 
-  const handleExport = async () => {
-    if (busy) return;
+  const handleShowQR = () => {
     if (Platform.OS !== 'web') void Haptics.selectionAsync();
-    await onExport(nameDraft || '無名');
+    const trimmed = nameDraft.trim() || '無名';
+    const { qr, tooLarge } = prepareQRPayload(myEvents, trimmed);
+    if (!qr) return;
+    setQRPayload(qr);
+    setQRTooLarge(tooLarge);
+    setQRModalOpen(true);
   };
 
-  const handleImport = async () => {
-    if (busy) return;
+  const handleScan = () => {
     if (Platform.OS !== 'web') void Haptics.selectionAsync();
-    const imported = await onImport();
+    setScanModalOpen(true);
+  };
+
+  const handleScanned = (text: string) => {
+    const imported = ingestQRPayload(text);
+    setScanModalOpen(false);
     if (imported) {
       onSelectShared(imported.id);
     }
@@ -96,129 +111,147 @@ export function ScheduleShareSheet({
   };
 
   return (
-    <BottomSheet visible={visible} onClose={onClose} theme={theme} maxHeightRatio={0.92}>
-      <View style={{ flex: 1 }}>
-        <View style={styles.headerRow}>
-          <Pressable onPress={onClose} hitSlop={10}>
-            <Text style={[styles.headerBtn, { color: theme.accent }]}>閉じる</Text>
-          </Pressable>
-          <Text style={[styles.headerTitle, { color: theme.text }]}>共有・切替</Text>
-          <View style={{ width: 60 }} />
-        </View>
-
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="interactive"
-          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
-          showsVerticalScrollIndicator={false}
-        >
-          <Text style={[styles.label, { color: theme.textTertiary }]}>表示中のスケジュール</Text>
-
-          <ScheduleRow
-            theme={theme}
-            iconName="person-circle"
-            title="自分のスケジュール"
-            subtitle={`${myEventCount} 件`}
-            active={activeId === null}
-            onPress={() => {
-              if (Platform.OS !== 'web') void Haptics.selectionAsync();
-              onSelectSelf();
-            }}
-          />
-
-          {schedules.map((s) => (
-            <ScheduleRow
-              key={s.id}
-              theme={theme}
-              iconName="people-circle"
-              title={`${s.name} さん`}
-              subtitle={`${s.events.length} 件 ・ 取込: ${formatDate(s.importedAt)}`}
-              active={activeId === s.id}
-              onPress={() => {
-                if (Platform.OS !== 'web') void Haptics.selectionAsync();
-                onSelectShared(s.id);
-              }}
-              onRemove={() => handleRemove(s)}
-            />
-          ))}
-
-          <View style={[styles.divider, { backgroundColor: theme.separator }]} />
-
-          <Text style={[styles.label, { color: theme.textTertiary }]}>自分のスケジュールを共有</Text>
-          <Text style={[styles.helper, { color: theme.textTertiary }]}>
-            その時点の予定をスナップショット形式で書き出します。受け取った人は取り込んで切替表示できます。
-          </Text>
-
-          <View style={styles.nameRow}>
-            <TextInput
-              value={nameDraft}
-              onChangeText={setNameDraft}
-              placeholder="あなたの表示名 (例: 山田)"
-              placeholderTextColor={theme.textTertiary}
-              maxLength={24}
-              style={[
-                styles.input,
-                { backgroundColor: theme.bgSecondary, color: theme.text },
-              ]}
-              returnKeyType="done"
-            />
+    <>
+      <BottomSheet visible={visible} onClose={onClose} theme={theme} maxHeightRatio={0.92}>
+        <View style={{ flex: 1 }}>
+          <View style={styles.headerRow}>
+            <Pressable onPress={onClose} hitSlop={10}>
+              <Text style={[styles.headerBtn, { color: theme.accent }]}>閉じる</Text>
+            </Pressable>
+            <Text style={[styles.headerTitle, { color: theme.text }]}>共有・切替</Text>
+            <View style={{ width: 60 }} />
           </View>
 
-          <Pressable
-            onPress={handleExport}
-            disabled={busy || myEventCount === 0}
-            style={({ pressed }) => [
-              styles.actionBtn,
-              {
-                backgroundColor: theme.accent,
-                opacity: busy || myEventCount === 0 ? 0.5 : pressed ? 0.85 : 1,
-              },
-            ]}
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+            showsVerticalScrollIndicator={false}
           >
-            <Ionicons name="share-outline" size={18} color="#fff" />
-            <Text style={styles.actionBtnText}>共有する</Text>
-          </Pressable>
+            <Text style={[styles.label, { color: theme.textTertiary }]}>表示中のスケジュール</Text>
 
-          <View style={[styles.divider, { backgroundColor: theme.separator }]} />
+            <ScheduleRow
+              theme={theme}
+              iconName="person-circle"
+              title="自分のスケジュール"
+              subtitle={`${myEvents.length} 件`}
+              active={activeId === null}
+              onPress={() => {
+                if (Platform.OS !== 'web') void Haptics.selectionAsync();
+                onSelectSelf();
+              }}
+            />
 
-          <Text style={[styles.label, { color: theme.textTertiary }]}>スケジュールを取り込む</Text>
-          <Text style={[styles.helper, { color: theme.textTertiary }]}>
-            受け取った Cadence の共有ファイル (.json) を選択して取り込みます。
-          </Text>
-          <Pressable
-            onPress={handleImport}
-            disabled={busy}
-            style={({ pressed }) => [
-              styles.actionBtn,
-              styles.secondaryBtn,
-              {
-                backgroundColor: theme.bgSecondary,
-                borderColor: theme.accent,
-                opacity: busy ? 0.5 : pressed ? 0.85 : 1,
-              },
-            ]}
-          >
-            <Ionicons name="cloud-download-outline" size={18} color={theme.accent} />
-            <Text style={[styles.actionBtnText, { color: theme.accent }]}>ファイルを選択</Text>
-          </Pressable>
+            {schedules.map((s) => (
+              <ScheduleRow
+                key={s.id}
+                theme={theme}
+                iconName="people-circle"
+                title={`${s.name} さん`}
+                subtitle={`${s.events.length} 件 ・ 取込: ${formatDate(s.importedAt)}`}
+                active={activeId === s.id}
+                onPress={() => {
+                  if (Platform.OS !== 'web') void Haptics.selectionAsync();
+                  onSelectShared(s.id);
+                }}
+                onRemove={() => handleRemove(s)}
+              />
+            ))}
 
-          {error ? (
-            <View style={[styles.msg, { backgroundColor: theme.palette.red.bg }]}>
-              <Ionicons name="alert-circle" size={16} color={theme.palette.red.fg} />
-              <Text style={[styles.msgText, { color: theme.palette.red.fg }]}>{error}</Text>
+            <View style={[styles.divider, { backgroundColor: theme.separator }]} />
+
+            <Text style={[styles.label, { color: theme.textTertiary }]}>QR で共有する</Text>
+            <Text style={[styles.helper, { color: theme.textTertiary }]}>
+              名前を入力 → QR 表示 → 相手のカメラで読み取り
+            </Text>
+
+            <View style={styles.nameRow}>
+              <TextInput
+                value={nameDraft}
+                onChangeText={setNameDraft}
+                placeholder="あなたの表示名 (例: 山田)"
+                placeholderTextColor={theme.textTertiary}
+                maxLength={24}
+                style={[
+                  styles.input,
+                  { backgroundColor: theme.bgSecondary, color: theme.text },
+                ]}
+                returnKeyType="done"
+              />
             </View>
-          ) : null}
-          {info ? (
-            <View style={[styles.msg, { backgroundColor: theme.palette.green.bg }]}>
-              <Ionicons name="checkmark-circle" size={16} color={theme.palette.green.fg} />
-              <Text style={[styles.msgText, { color: theme.palette.green.fg }]}>{info}</Text>
-            </View>
-          ) : null}
-        </ScrollView>
-      </View>
-    </BottomSheet>
+
+            <Pressable
+              onPress={handleShowQR}
+              disabled={busy || myEvents.length === 0}
+              style={({ pressed }) => [
+                styles.actionBtn,
+                {
+                  backgroundColor: theme.accent,
+                  opacity: busy || myEvents.length === 0 ? 0.5 : pressed ? 0.85 : 1,
+                },
+              ]}
+            >
+              <Ionicons name="qr-code-outline" size={18} color="#fff" />
+              <Text style={styles.actionBtnText}>QR を表示</Text>
+            </Pressable>
+
+            <View style={[styles.divider, { backgroundColor: theme.separator }]} />
+
+            <Text style={[styles.label, { color: theme.textTertiary }]}>QR を読み取る</Text>
+            <Text style={[styles.helper, { color: theme.textTertiary }]}>
+              相手の Cadence が表示している QR コードをカメラで読み取ります
+            </Text>
+            <Pressable
+              onPress={handleScan}
+              disabled={busy}
+              style={({ pressed }) => [
+                styles.actionBtn,
+                styles.secondaryBtn,
+                {
+                  backgroundColor: theme.bgSecondary,
+                  borderColor: theme.accent,
+                  opacity: busy ? 0.5 : pressed ? 0.85 : 1,
+                },
+              ]}
+            >
+              <Ionicons name="camera-outline" size={18} color={theme.accent} />
+              <Text style={[styles.actionBtnText, { color: theme.accent }]}>カメラで読み取る</Text>
+            </Pressable>
+
+            {error ? (
+              <View style={[styles.msg, { backgroundColor: theme.palette.red.bg }]}>
+                <Ionicons name="alert-circle" size={16} color={theme.palette.red.fg} />
+                <Text style={[styles.msgText, { color: theme.palette.red.fg }]}>{error}</Text>
+              </View>
+            ) : null}
+            {info ? (
+              <View style={[styles.msg, { backgroundColor: theme.palette.green.bg }]}>
+                <Ionicons name="checkmark-circle" size={16} color={theme.palette.green.fg} />
+                <Text style={[styles.msgText, { color: theme.palette.green.fg }]}>{info}</Text>
+              </View>
+            ) : null}
+          </ScrollView>
+        </View>
+      </BottomSheet>
+
+      <QRShareModal
+        visible={qrModalOpen}
+        payload={qrPayload}
+        name={nameDraft.trim() || '無名'}
+        eventCount={myEvents.length}
+        tooLarge={qrTooLarge}
+        theme={theme}
+        onClose={() => setQRModalOpen(false)}
+      />
+
+      <QRScanModal
+        visible={scanModalOpen}
+        theme={theme}
+        onClose={() => setScanModalOpen(false)}
+        onScanned={handleScanned}
+      />
+    </>
   );
 }
 

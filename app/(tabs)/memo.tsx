@@ -157,6 +157,9 @@ export default function MemoScreen() {
               theme={theme}
               onPress={() => setFilter(FILTER_UNCATEGORIZED)}
             />
+            {folders.length > 0 ? (
+              <View style={[styles.filterDivider, { backgroundColor: theme.separator }]} />
+            ) : null}
             {folders.map((f) => (
               <FilterChip
                 key={f.id}
@@ -417,6 +420,13 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
+  },
+  filterDivider: {
+    width: 1,
+    alignSelf: 'stretch',
+    marginHorizontal: 8,
+    marginVertical: 4,
+    opacity: 0.6,
   },
   list: {
     paddingHorizontal: 16,

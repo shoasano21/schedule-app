@@ -266,12 +266,57 @@ export default function SettingsScreen() {
 
         <SectionHeader theme={theme} title="表示" />
         <Group theme={theme}>
-          <InfoRow
-            theme={theme}
-            icon={scheme === 'dark' ? 'moon' : 'sunny'}
-            label="外観モード"
-            value={scheme === 'dark' ? 'ダーク' : 'ライト'}
-          />
+          <View style={styles.col}>
+            <Text style={[styles.rowLabel, { color: theme.text }]}>外観モード</Text>
+            <Text style={[styles.rowSub, { color: theme.textTertiary, marginBottom: 12 }]}>
+              {prefs.appearance === 'system'
+                ? `端末の設定に従う (現在: ${scheme === 'dark' ? 'ダーク' : 'ライト'})`
+                : prefs.appearance === 'dark'
+                ? '常にダーク'
+                : '常にライト'}
+            </Text>
+            <View style={styles.appearanceRow}>
+              {(
+                [
+                  { key: 'system', label: '自動', icon: 'phone-portrait-outline' },
+                  { key: 'light', label: 'ライト', icon: 'sunny-outline' },
+                  { key: 'dark', label: 'ダーク', icon: 'moon-outline' },
+                ] as const
+              ).map((opt) => {
+                const selected = prefs.appearance === opt.key;
+                return (
+                  <Pressable
+                    key={opt.key}
+                    onPress={() => {
+                      if (Platform.OS !== 'web') void Haptics.selectionAsync();
+                      prefs.setAppearance(opt.key);
+                    }}
+                    style={[
+                      styles.appearanceBtn,
+                      {
+                        backgroundColor: selected ? theme.accent : theme.bgSecondary,
+                        borderColor: selected ? theme.accent : theme.separator,
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name={opt.icon}
+                      size={18}
+                      color={selected ? '#fff' : theme.text}
+                    />
+                    <Text
+                      style={[
+                        styles.appearanceLabel,
+                        { color: selected ? '#fff' : theme.text },
+                      ]}
+                    >
+                      {opt.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
         </Group>
 
         <SectionHeader theme={theme} title="テーマカラー" />
@@ -319,51 +364,14 @@ export default function SettingsScreen() {
           </View>
         </Group>
 
-        <SectionHeader theme={theme} title="Pro" />
+        <SectionHeader theme={theme} title="データ" />
         <Group theme={theme}>
-          <Pressable
-            onPress={() => {
-              if (Platform.OS !== 'web') void Haptics.selectionAsync();
-              setPaywallOpen(true);
-            }}
-            style={({ pressed }) => [styles.row, { opacity: pressed ? 0.6 : 1 }]}
-          >
-            <Ionicons
-              name={iap.isPro ? 'sparkles' : 'sparkles-outline'}
-              size={20}
-              color={theme.accent}
-            />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.rowLabel, { color: theme.text }]}>
-                {iap.isPro ? 'Cadence Pro' : 'Cadence Pro にアップグレード'}
-              </Text>
-              <Text style={[styles.rowSub, { color: theme.textTertiary }]}>
-                {iap.isPro
-                  ? 'すべての Pro 機能を利用中'
-                  : '記録ダッシュボード・テーマ・iCloud 同期など'}
-              </Text>
-            </View>
-            {iap.isPro ? (
-              <View style={[styles.proBadge, { backgroundColor: theme.palette.green.bg }]}>
-                <Text style={[styles.proBadgeText, { color: theme.palette.green.fg }]}>
-                  ご利用中
-                </Text>
-              </View>
-            ) : (
-              <Ionicons name="chevron-forward" size={16} color={theme.textTertiary} />
-            )}
-          </Pressable>
-
           <Pressable
             onPress={handleExportICS}
             disabled={ics.busy}
             style={({ pressed }) => [
               styles.row,
-              {
-                borderTopColor: theme.separator,
-                borderTopWidth: StyleSheet.hairlineWidth,
-                opacity: ics.busy ? 0.5 : pressed ? 0.6 : 1,
-              },
+              { opacity: ics.busy ? 0.5 : pressed ? 0.6 : 1 },
             ]}
           >
             <Ionicons name="download-outline" size={20} color={theme.text} />
@@ -907,6 +915,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
+  },
+  appearanceRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  appearanceBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  appearanceLabel: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   swatchOuter: {
     width: 44,

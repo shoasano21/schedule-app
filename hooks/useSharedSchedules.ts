@@ -1,25 +1,107 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system/legacy';
-import * as Sharing from 'expo-sharing';
+import LZString from 'lz-string';
 import { useCallback, useEffect, useState } from 'react';
-import { Platform } from 'react-native';
-import type { EventItem } from '../types/Event';
+import type { ColorId, EventItem } from '../types/Event';
 import {
   SCHEDULE_SHARE_VERSION,
-  type ScheduleShareFile,
   type SharedSchedule,
 } from '../types/SharedSchedule';
 
 const STORAGE_KEY = 'schedule-app:shared-schedules:v1';
 const SHARE_NAME_KEY = 'schedule-app:share-name:v1';
 
-function makeId() {
-  return `s-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+// QR コードに詰めるためのスリムフォーマット
+interface SlimEvent {
+  i: string;
+  t: string;
+  d: string;
+  s: number;
+  h: number;
+  c: ColorId;
+  l?: string;
+  m?: string;
+}
+interface SlimPayload {
+  a: 'cad';
+  v: number;
+  n: string;
+  g: number;
+  e: SlimEvent[];
 }
 
-function sanitizeFileName(s: string) {
-  return (s || 'schedule').replace(/[^\w一-龯ぁ-んァ-ヶー\-]/g, '_').slice(0, 24) || 'schedule';
+function toSlim(events: EventItem[], name: string): SlimPayload {
+  return {
+    a: 'cad',
+    v: SCHEDULE_SHARE_VERSION,
+    n: name,
+    g: Date.now(),
+    e: events.map((ev) => {
+      const o: SlimEvent = {
+        i: ev.id,
+        t: ev.title,
+        d: ev.date,
+        s: ev.startH,
+        h: ev.endH,
+        c: ev.color,
+      };
+      if (ev.location) o.l = ev.location;
+      if (ev.memo) o.m = ev.memo;
+      return o;
+    }),
+  };
+}
+
+function fromSlim(p: Partial<SlimPayload>): { name: string; generatedAt: number; events: EventItem[] } | null {
+  if (p?.a !== 'cad' || !Array.isArray(p.e)) return null;
+  if (typeof p.v !== 'number' || p.v > SCHEDULE_SHARE_VERSION) return null;
+  const events: EventItem[] = [];
+  for (const ev of p.e) {
+    if (
+      ev &&
+      typeof ev.i === 'string' &&
+      typeof ev.t === 'string' &&
+      typeof ev.d === 'string' &&
+      typeof ev.s === 'number' &&
+      typeof ev.h === 'number' &&
+      typeof ev.c === 'string'
+    ) {
+      events.push({
+        id: ev.i,
+        title: ev.t,
+        date: ev.d,
+        startH: ev.s,
+        endH: ev.h,
+        color: ev.c as ColorId,
+        location: ev.l ?? '',
+        memo: ev.m ?? '',
+      });
+    }
+  }
+  return {
+    name: (p.n ?? '名無し').trim().slice(0, 24) || '名無し',
+    generatedAt: p.g ?? Date.now(),
+    events,
+  };
+}
+
+export function encodeForQR(events: EventItem[], name: string): string {
+  const payload = toSlim(events, name);
+  return LZString.compressToEncodedURIComponent(JSON.stringify(payload));
+}
+
+export function decodeFromQR(text: string): { name: string; generatedAt: number; events: EventItem[] } | null {
+  try {
+    const json = LZString.decompressFromEncodedURIComponent(text);
+    if (!json) return null;
+    const parsed = JSON.parse(json) as Partial<SlimPayload>;
+    return fromSlim(parsed);
+  } catch {
+    return null;
+  }
+}
+
+function makeId() {
+  return `s-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 export function useSharedSchedules() {
@@ -91,117 +173,42 @@ export function useSharedSchedules() {
     [persist]
   );
 
-  const exportSchedule = useCallback(
-    async (events: EventItem[], name: string): Promise<boolean> => {
+  // QR コード用の圧縮ペイロード生成 (共有時に名前を保存)
+  const prepareQRPayload = useCallback(
+    (events: EventItem[], name: string): { qr: string | null; tooLarge: boolean } => {
       const trimmedName = name.trim() || '無名';
-      setBusy(true);
       setError(null);
       setInfo(null);
-      try {
-        if (events.length === 0) {
-          setError('共有できる予定がありません');
-          return false;
-        }
-        updateShareName(trimmedName);
-        const payload: ScheduleShareFile = {
-          app: 'cadence',
-          type: 'schedule-share',
-          version: SCHEDULE_SHARE_VERSION,
-          name: trimmedName,
-          generatedAt: Date.now(),
-          events,
-        };
-        const json = JSON.stringify(payload);
-        const filename = `cadence-schedule-${sanitizeFileName(trimmedName)}.json`;
-
-        if (Platform.OS === 'web') {
-          if (typeof window !== 'undefined') {
-            const blob = new Blob([json], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            a.click();
-            URL.revokeObjectURL(url);
-          }
-          setInfo('スケジュールをダウンロードしました');
-          return true;
-        }
-
-        const dir = FileSystem.documentDirectory ?? FileSystem.cacheDirectory;
-        if (!dir) throw new Error('ファイルシステムが利用できません');
-        const target = `${dir}${filename}`;
-        await FileSystem.writeAsStringAsync(target, json, {
-          encoding: FileSystem.EncodingType.UTF8,
-        });
-
-        const ok = await Sharing.isAvailableAsync();
-        if (!ok) {
-          setError('共有機能が利用できません');
-          return false;
-        }
-        await Sharing.shareAsync(target, {
-          mimeType: 'application/json',
-          dialogTitle: 'Cadence スケジュールを共有',
-          UTI: 'public.json',
-        });
-        setInfo('スケジュールを共有しました');
-        return true;
-      } catch (e: any) {
-        setError(e?.message ?? '共有に失敗しました');
-        return false;
-      } finally {
-        setBusy(false);
+      if (events.length === 0) {
+        setError('共有できる予定がありません');
+        return { qr: null, tooLarge: false };
       }
+      updateShareName(trimmedName);
+      const qr = encodeForQR(events, trimmedName);
+      // QR Code v40 の最大データ量 (alphanumeric ~4296 文字、エラー訂正 L で)
+      const tooLarge = qr.length > 2900;
+      return { qr, tooLarge };
     },
     [updateShareName]
   );
 
-  const importSchedule = useCallback(async (): Promise<SharedSchedule | null> => {
-    setBusy(true);
-    setError(null);
-    setInfo(null);
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: ['application/json'],
-        copyToCacheDirectory: true,
-        multiple: false,
-      });
-      if (result.canceled || !result.assets || result.assets.length === 0) return null;
-      const file = result.assets[0];
-      const content = await FileSystem.readAsStringAsync(file.uri, {
-        encoding: FileSystem.EncodingType.UTF8,
-      });
-      const parsed = JSON.parse(content) as Partial<ScheduleShareFile>;
-      if (parsed?.app !== 'cadence' || parsed?.type !== 'schedule-share') {
-        setError('Cadence の共有ファイルではありません');
+  // QR (もしくは手入力) で取り込み
+  const ingestQRPayload = useCallback(
+    (text: string): SharedSchedule | null => {
+      setError(null);
+      setInfo(null);
+      const decoded = decodeFromQR(text);
+      if (!decoded) {
+        setError('Cadence の共有データではありません');
         return null;
       }
-      if (typeof parsed.version !== 'number' || parsed.version > SCHEDULE_SHARE_VERSION) {
-        setError('このファイルは新しすぎる、または対応外のバージョンです');
-        return null;
-      }
-      if (!Array.isArray(parsed.events)) {
-        setError('予定データが破損しています');
-        return null;
-      }
-
       const incoming: SharedSchedule = {
         id: makeId(),
-        name: (parsed.name ?? '名無し').trim().slice(0, 24) || '名無し',
-        generatedAt: parsed.generatedAt ?? Date.now(),
+        name: decoded.name,
+        generatedAt: decoded.generatedAt,
         importedAt: Date.now(),
-        events: parsed.events.filter(
-          (e: any) =>
-            e &&
-            typeof e.id === 'string' &&
-            typeof e.title === 'string' &&
-            typeof e.date === 'string' &&
-            typeof e.startH === 'number' &&
-            typeof e.endH === 'number'
-        ) as EventItem[],
+        events: decoded.events,
       };
-
       setSchedules((prev) => {
         const next = [incoming, ...prev];
         void persist(next);
@@ -209,13 +216,9 @@ export function useSharedSchedules() {
       });
       setInfo(`${incoming.name} さんのスケジュールを取り込みました`);
       return incoming;
-    } catch (e: any) {
-      setError(e?.message ?? '読み込みに失敗しました');
-      return null;
-    } finally {
-      setBusy(false);
-    }
-  }, [persist]);
+    },
+    [persist]
+  );
 
   return {
     schedules,
@@ -224,8 +227,8 @@ export function useSharedSchedules() {
     busy,
     error,
     info,
-    exportSchedule,
-    importSchedule,
+    prepareQRPayload,
+    ingestQRPayload,
     removeSchedule,
     setShareName: updateShareName,
     clearMessages: () => {

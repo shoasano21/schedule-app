@@ -227,9 +227,9 @@ export default function ScheduleScreen() {
         busy={shared.busy}
         error={shared.error}
         info={shared.info}
-        myEventCount={events.events.length}
-        onExport={(name) => shared.exportSchedule(events.events, name)}
-        onImport={shared.importSchedule}
+        myEvents={events.events}
+        prepareQRPayload={shared.prepareQRPayload}
+        ingestQRPayload={shared.ingestQRPayload}
         onRemove={shared.removeSchedule}
         onClearMessages={shared.clearMessages}
       />

@@ -10,7 +10,9 @@ const Context = createContext<UseIAPResult | null>(null);
  */
 export function IAPProvider({ children }: { children: React.ReactNode }) {
   const iap = useIAP();
-  return <Context.Provider value={iap}>{children}</Context.Provider>;
+  // 全機能を無料開放: isPro を強制的に true にする
+  const value: UseIAPResult = { ...iap, isPro: true };
+  return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 
 export function useIAPContext(): UseIAPResult {

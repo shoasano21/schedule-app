@@ -3,7 +3,7 @@
     "name": "Cadence",
     "slug": "schedule-app",
     "scheme": "scheduleapp",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -16,6 +16,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.shoasano.scheduleapp",
+      "buildNumber": "2",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
@@ -46,6 +47,14 @@
           "photosPermission": "メモに添付する写真を選択するため、写真ライブラリへのアクセスを許可してください。",
           "cameraPermission": false,
           "microphonePermission": false
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "他の人が表示している QR コードを読み取るため、カメラへのアクセスを許可してください。",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
         }
       ],
       [

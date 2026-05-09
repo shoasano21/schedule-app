@@ -12,10 +12,16 @@ import { useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { IAPProvider } from '../hooks/IAPContext';
-import { PreferencesProvider } from '../hooks/PreferencesContext';
+import { PreferencesProvider, usePreferences } from '../hooks/PreferencesContext';
+
+function ThemedStatusBar() {
+  const systemScheme = useColorScheme();
+  const { appearance } = usePreferences();
+  const effective = appearance === 'system' ? systemScheme : appearance;
+  return <StatusBar style={effective === 'dark' ? 'light' : 'dark'} />;
+}
 
 export default function RootLayout() {
-  const scheme = useColorScheme();
   const [loaded] = useFonts({
     NotoSansJP_400Regular,
     NotoSansJP_500Medium,
@@ -30,7 +36,7 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <PreferencesProvider>
           <IAPProvider>
-            <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+            <ThemedStatusBar />
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="(tabs)" />
             </Stack>
