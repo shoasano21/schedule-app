@@ -3,7 +3,6 @@ import * as Haptics from 'expo-haptics';
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
@@ -98,10 +97,7 @@ export function ScheduleShareSheet({
 
   return (
     <BottomSheet visible={visible} onClose={onClose} theme={theme} maxHeightRatio={0.92}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
-      >
+      <View style={{ flex: 1 }}>
         <View style={styles.headerRow}>
           <Pressable onPress={onClose} hitSlop={10}>
             <Text style={[styles.headerBtn, { color: theme.accent }]}>閉じる</Text>
@@ -221,7 +217,7 @@ export function ScheduleShareSheet({
             </View>
           ) : null}
         </ScrollView>
-      </KeyboardAvoidingView>
+      </View>
     </BottomSheet>
   );
 }

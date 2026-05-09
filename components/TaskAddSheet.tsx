@@ -4,7 +4,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated as RNAnimated,
   Easing as RNEasing,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
@@ -157,10 +156,7 @@ export function TaskAddSheet({
 
   return (
     <BottomSheet visible={visible} onClose={onClose} theme={theme} maxHeightRatio={0.94}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
-      >
+      <View style={{ flex: 1 }}>
         <View style={styles.headerRow}>
           <Pressable onPress={onClose} hitSlop={10}>
             <Text style={[styles.headerBtn, { color: theme.accent }]}>キャンセル</Text>
@@ -422,7 +418,7 @@ export function TaskAddSheet({
             ) : null}
           </RNAnimated.View>
         </ScrollView>
-      </KeyboardAvoidingView>
+      </View>
     </BottomSheet>
   );
 }

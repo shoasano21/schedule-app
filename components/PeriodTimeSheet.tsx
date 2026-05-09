@@ -1,7 +1,6 @@
 import * as Haptics from 'expo-haptics';
 import React, { useEffect, useState } from 'react';
 import {
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   StyleSheet,
@@ -62,7 +61,7 @@ export function PeriodTimeSheet({ visible, theme, period, initial, onClose, onSa
 
   return (
     <BottomSheet visible={visible} onClose={onClose} theme={theme} maxHeightRatio={0.5}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <View>
         <View style={styles.headerRow}>
           <Pressable onPress={onClose} hitSlop={10}>
             <Text style={[styles.headerBtn, { color: theme.accent }]}>キャンセル</Text>
@@ -121,7 +120,7 @@ export function PeriodTimeSheet({ visible, theme, period, initial, onClose, onSa
             </Text>
           </Pressable>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </BottomSheet>
   );
 }

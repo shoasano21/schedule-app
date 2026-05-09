@@ -1,5 +1,14 @@
 import React, { useEffect } from 'react';
-import { Dimensions, Modal, Pressable, StyleSheet, View } from 'react-native';
+import {
+  Dimensions,
+  Keyboard,
+  type KeyboardEvent,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  View,
+} from 'react-native';
 import Animated, {
   Easing,
   cancelAnimation,
@@ -31,6 +40,7 @@ export function BottomSheet({
 
   const translateY = useSharedValue(maxH);
   const overlay = useSharedValue(0);
+  const keyboardOffset = useSharedValue(0);
 
   useEffect(() => {
     cancelAnimation(translateY);
@@ -50,7 +60,42 @@ export function BottomSheet({
     }
   }, [visible, maxH, translateY, overlay]);
 
+  // キーボード開閉に合わせてシートを押し上げる
+  useEffect(() => {
+    if (!visible) {
+      keyboardOffset.value = 0;
+      return;
+    }
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const onShow = (e: KeyboardEvent) => {
+      const h = e.endCoordinates?.height ?? 0;
+      // safe-area の bottom inset 分は元から余白があるので差し引く
+      const offset = Math.max(0, h - insets.bottom);
+      keyboardOffset.value = withTiming(offset, {
+        duration: e.duration ?? 250,
+        easing: Easing.out(Easing.cubic),
+      });
+    };
+    const onHide = (e: KeyboardEvent) => {
+      keyboardOffset.value = withTiming(0, {
+        duration: e.duration ?? 250,
+        easing: Easing.in(Easing.cubic),
+      });
+    };
+
+    const subShow = Keyboard.addListener(showEvent, onShow);
+    const subHide = Keyboard.addListener(hideEvent, onHide);
+    return () => {
+      subShow.remove();
+      subHide.remove();
+    };
+  }, [visible, insets.bottom, keyboardOffset]);
+
   const sheetStyle = useAnimatedStyle(() => ({
+    bottom: keyboardOffset.value,
+    maxHeight: maxH - keyboardOffset.value,
     transform: [{ translateY: translateY.value }],
   }));
   const overlayStyle = useAnimatedStyle(() => ({
@@ -72,13 +117,12 @@ export function BottomSheet({
         <Animated.View
           style={[
             styles.sheet,
-            sheetStyle,
             {
               backgroundColor: theme.bgElevated,
-              maxHeight: maxH,
               paddingBottom: insets.bottom + 16,
               shadowColor: theme.shadow,
             },
+            sheetStyle,
           ]}
         >
           <View style={[styles.handleWrap]}>

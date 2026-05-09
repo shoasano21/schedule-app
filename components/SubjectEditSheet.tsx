@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
@@ -67,10 +66,7 @@ export function SubjectEditSheet({
 
   return (
     <BottomSheet visible={visible} onClose={onClose} theme={theme} maxHeightRatio={0.8}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
-      >
+      <View style={{ flex: 1 }}>
         <View style={styles.headerRow}>
           <Pressable onPress={onClose} hitSlop={10}>
             <Text style={[styles.headerBtn, { color: theme.accent }]}>キャンセル</Text>
@@ -166,7 +162,7 @@ export function SubjectEditSheet({
             </Pressable>
           ) : null}
         </ScrollView>
-      </KeyboardAvoidingView>
+      </View>
     </BottomSheet>
   );
 }
