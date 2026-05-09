@@ -106,16 +106,35 @@ workflows:
         script: |
           WORKSPACE_PATH=$(find ios -name "*.xcworkspace" -type d | head -1)
           SCHEME_NAME=$(basename "$WORKSPACE_PATH" .xcworkspace)
-          # 一覧で確認: 設定されているプロファイルとバンドルID
+
           echo "--- workspace info ---"
           xcodebuild -workspace "$WORKSPACE_PATH" -list || true
+
           echo "--- entitlements files ---"
           find ios -name "*.entitlements" -exec sh -c 'echo "=== $1 ==="; cat "$1"' sh {} \;
-          echo "--- starting verbose archive ---"
+
+          echo "--- starting archive ---"
+          set +e
           xcode-project build-ipa \
             --workspace "$WORKSPACE_PATH" \
-            --scheme "$SCHEME_NAME" \
-            --verbose
+            --scheme "$SCHEME_NAME"
+          BUILD_RESULT=$?
+          set -e
+
+          if [ $BUILD_RESULT -ne 0 ]; then
+            echo "===== Build failed (exit $BUILD_RESULT). Dumping xcodebuild logs ====="
+            LATEST_LOG=$(ls -t /tmp/xcodebuild_logs/*.log 2>/dev/null | head -1)
+            if [ -n "$LATEST_LOG" ]; then
+              echo "--- tail of $LATEST_LOG (last 300 lines) ---"
+              tail -300 "$LATEST_LOG"
+              echo "--- error / signing-related lines ---"
+              grep -nE "error:|fatal|Code Sign|provisioning|entitle|profile|missing|not found" "$LATEST_LOG" | head -80
+            else
+              echo "(no xcodebuild log found in /tmp/xcodebuild_logs/)"
+              ls -la /tmp/xcodebuild_logs/ 2>/dev/null || true
+            fi
+            exit $BUILD_RESULT
+          fi
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
