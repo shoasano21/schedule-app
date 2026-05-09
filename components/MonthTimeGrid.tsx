@@ -31,6 +31,10 @@ interface Props {
   monthKey: string;
   todayTick?: number;
   bottomPadding?: number;
+  /** 表示開始時刻 (省略時は 0) */
+  viewStartHour?: number;
+  /** 表示終了時刻 (省略時は 24) */
+  viewEndHour?: number;
 }
 
 export function MonthTimeGrid({
@@ -46,16 +50,20 @@ export function MonthTimeGrid({
   monthKey,
   todayTick = 0,
   bottomPadding = 0,
+  viewStartHour = START_HOUR,
+  viewEndHour = END_HOUR,
 }: Props) {
-  const totalHeight = (END_HOUR - START_HOUR) * HOUR_HEIGHT;
+  const startH = Math.max(START_HOUR, Math.min(viewStartHour, END_HOUR - 1));
+  const endH = Math.max(startH + 1, Math.min(viewEndHour, END_HOUR));
+  const totalHeight = (endH - startH) * HOUR_HEIGHT;
   const totalWidth = COL_WIDTH * daysOfMonth.length;
   const hours = useMemo(
-    () => Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i),
-    []
+    () => Array.from({ length: endH - startH + 1 }, (_, i) => startH + i),
+    [startH, endH]
   );
   const slotHours = useMemo(
-    () => Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i),
-    []
+    () => Array.from({ length: endH - startH }, (_, i) => startH + i),
+    [startH, endH]
   );
 
   const scrollX = useSharedValue(0);
@@ -89,8 +97,8 @@ export function MonthTimeGrid({
 
   // 縦方向: 起動・月切替・「今日」押下時に現在時刻 -1h へスクロール
   useEffect(() => {
-    const targetHour = Math.max(START_HOUR, Math.floor(nowFractionalHour) - 1);
-    const y = (targetHour - START_HOUR) * HOUR_HEIGHT;
+    const targetHour = Math.max(startH, Math.floor(nowFractionalHour) - 1);
+    const y = Math.max(0, (targetHour - startH) * HOUR_HEIGHT);
     const t = setTimeout(() => {
       vScrollRef.current?.scrollTo({ y, animated: true });
     }, 200);
@@ -193,9 +201,9 @@ export function MonthTimeGrid({
           <View style={[styles.timeAxis, { width: TIME_AXIS_WIDTH }]}>
             <View style={{ height: totalHeight, position: 'relative' }}>
               {hours
-                .filter((h) => h < END_HOUR)
+                .filter((h) => h < endH)
                 .map((h) => {
-                  const isFirst = h === START_HOUR;
+                  const isFirst = h === startH;
                   return (
                     <View
                       key={h}
@@ -203,8 +211,8 @@ export function MonthTimeGrid({
                         styles.hourLabel,
                         {
                           top: isFirst
-                            ? (h - START_HOUR) * HOUR_HEIGHT + 2
-                            : (h - START_HOUR) * HOUR_HEIGHT - 7,
+                            ? (h - startH) * HOUR_HEIGHT + 2
+                            : (h - startH) * HOUR_HEIGHT - 7,
                         },
                       ]}
                     >
@@ -235,7 +243,7 @@ export function MonthTimeGrid({
                   style={[
                     styles.hourLine,
                     {
-                      top: (h - START_HOUR) * HOUR_HEIGHT,
+                      top: (h - startH) * HOUR_HEIGHT,
                       backgroundColor: theme.separator,
                     },
                   ]}
@@ -268,7 +276,7 @@ export function MonthTimeGrid({
                           style={({ pressed, hovered }: any) => [
                             styles.slot,
                             {
-                              top: (h - START_HOUR) * HOUR_HEIGHT,
+                              top: (h - startH) * HOUR_HEIGHT,
                               height: HOUR_HEIGHT,
                               backgroundColor: pressed
                                 ? theme.accentBg
@@ -279,12 +287,16 @@ export function MonthTimeGrid({
                           ]}
                         />
                       ))}
-                      {list.map((ev) => {
-                        const c = theme.palette[ev.color];
-                        const top = (ev.startH - START_HOUR) * HOUR_HEIGHT + 1;
-                        const dur = Math.max(0.5, ev.endH - ev.startH);
-                        const height = Math.max(18, dur * HOUR_HEIGHT - 2);
-                        return (
+                      {list
+                        .filter((ev) => ev.endH > startH && ev.startH < endH)
+                        .map((ev) => {
+                          const c = theme.palette[ev.color];
+                          const visStart = Math.max(ev.startH, startH);
+                          const visEnd = Math.min(ev.endH, endH);
+                          const top = (visStart - startH) * HOUR_HEIGHT + 1;
+                          const dur = Math.max(0.5, visEnd - visStart);
+                          const height = Math.max(18, dur * HOUR_HEIGHT - 2);
+                          return (
                           <Pressable
                             key={ev.id}
                             onPress={() => {

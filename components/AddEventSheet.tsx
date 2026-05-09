@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import type { Theme } from '../constants/colors';
 import { useTitlePresets } from '../hooks/useTitlePresets';
-import type { ColorId, EventItem } from '../types/Event';
+import type { ColorId, EventItem, RepeatFreq, RepeatRule } from '../types/Event';
 import { END_HOUR, START_HOUR, formatHour, fromISODate, toISODate } from '../utils/date';
 import { BottomSheet } from './BottomSheet';
 import { ColorPicker } from './ColorPicker';
@@ -28,6 +28,8 @@ export interface AddEventInput {
   color: ColorId;
   location: string;
   memo: string;
+  pinned?: boolean;
+  repeat?: RepeatRule;
 }
 
 interface Props {
@@ -62,6 +64,9 @@ export function AddEventSheet({
   const [color, setColor] = useState<ColorId>('blue');
   const [location, setLocation] = useState('');
   const [memo, setMemo] = useState('');
+  const [pinned, setPinned] = useState(false);
+  const [repeatFreq, setRepeatFreq] = useState<RepeatFreq | 'none'>('none');
+  const [repeatUntil, setRepeatUntil] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [showNewInput, setShowNewInput] = useState(false);
   const [newTitleDraft, setNewTitleDraft] = useState('');
@@ -83,6 +88,9 @@ export function AddEventSheet({
       setColor(initial.color);
       setLocation(initial.location);
       setMemo(initial.memo);
+      setPinned(!!initial.pinned);
+      setRepeatFreq(initial.repeat?.freq ?? 'none');
+      setRepeatUntil(initial.repeat?.until ?? '');
     } else {
       const baseStart =
         defaultStartH != null && defaultStartH >= START_HOUR && defaultStartH < END_HOUR
@@ -95,6 +103,9 @@ export function AddEventSheet({
       setColor('blue');
       setLocation('');
       setMemo('');
+      setPinned(false);
+      setRepeatFreq('none');
+      setRepeatUntil('');
     }
     setError('');
     setShowNewInput(false);
@@ -175,6 +186,11 @@ export function AddEventSheet({
       color,
       location: location.trim(),
       memo: memo.trim(),
+      pinned,
+      repeat:
+        repeatFreq === 'none'
+          ? undefined
+          : { freq: repeatFreq, until: repeatUntil || undefined },
     });
   };
 
@@ -387,6 +403,146 @@ export function AddEventSheet({
             />
           </Section>
 
+          <Section label="繰り返し" theme={theme}>
+            <View style={styles.repeatRow}>
+              {(
+                [
+                  { key: 'none', label: 'なし' },
+                  { key: 'daily', label: '毎日' },
+                  { key: 'weekly', label: '毎週' },
+                  { key: 'monthly', label: '毎月' },
+                ] as const
+              ).map((opt) => {
+                const sel = repeatFreq === opt.key;
+                return (
+                  <Pressable
+                    key={opt.key}
+                    onPress={() => {
+                      if (Platform.OS !== 'web') void Haptics.selectionAsync();
+                      setRepeatFreq(opt.key);
+                    }}
+                    style={[
+                      styles.repeatChip,
+                      {
+                        backgroundColor: sel ? theme.accent : theme.bgSecondary,
+                        borderColor: sel ? theme.accent : theme.separator,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.repeatChipText,
+                        { color: sel ? '#fff' : theme.text },
+                      ]}
+                    >
+                      {opt.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            {repeatFreq !== 'none' ? (
+              <View style={[styles.repeatUntilRow, { marginTop: 10 }]}>
+                <Text style={[styles.repeatUntilLabel, { color: theme.textTertiary }]}>
+                  終了日 (省略可)
+                </Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: 6 }}
+                >
+                  {[
+                    { label: '無期限', value: '' },
+                    { label: '1ヶ月後', value: addMonthsISO(date, 1) },
+                    { label: '3ヶ月後', value: addMonthsISO(date, 3) },
+                    { label: '半年後', value: addMonthsISO(date, 6) },
+                    { label: '1年後', value: addMonthsISO(date, 12) },
+                    { label: '今年度末 (3/31)', value: fiscalYearEndISO(date) },
+                  ].map((opt) => {
+                    const sel = (repeatUntil || '') === opt.value;
+                    return (
+                      <Pressable
+                        key={opt.label}
+                        onPress={() => setRepeatUntil(opt.value)}
+                        style={[
+                          styles.untilChip,
+                          {
+                            backgroundColor: sel ? theme.accent : theme.bgSecondary,
+                            borderColor: sel ? theme.accent : theme.separator,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.untilChipText,
+                            { color: sel ? '#fff' : theme.text },
+                          ]}
+                        >
+                          {opt.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+                {repeatUntil ? (
+                  <Text style={[styles.repeatUntilDate, { color: theme.text }]}>
+                    {repeatUntil} まで
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
+          </Section>
+
+          <Pressable
+            onPress={() => {
+              if (Platform.OS !== 'web') void Haptics.selectionAsync();
+              setPinned((v) => !v);
+            }}
+            style={[
+              styles.pinToggle,
+              {
+                backgroundColor: pinned ? theme.accentBg : theme.bgSecondary,
+                borderColor: pinned ? theme.accent : theme.separator,
+              },
+            ]}
+          >
+            <Ionicons
+              name={pinned ? 'flag' : 'flag-outline'}
+              size={18}
+              color={pinned ? theme.accent : theme.textTertiary}
+            />
+            <View style={{ flex: 1 }}>
+              <Text
+                style={[
+                  styles.pinToggleLabel,
+                  { color: pinned ? theme.accent : theme.text },
+                ]}
+              >
+                重要日 (カウントダウン表示)
+              </Text>
+              <Text style={[styles.pinToggleSub, { color: theme.textTertiary }]}>
+                月間ヘッダーに「あと○日」と表示されます
+              </Text>
+            </View>
+            <View
+              style={[
+                styles.pinSwitch,
+                {
+                  backgroundColor: pinned ? theme.accent : theme.separator,
+                },
+              ]}
+            >
+              <View
+                style={[
+                  styles.pinSwitchKnob,
+                  {
+                    transform: [{ translateX: pinned ? 16 : 0 }],
+                  },
+                ]}
+              />
+            </View>
+          </Pressable>
+
           {error ? (
             <View style={[styles.errorRow, { backgroundColor: theme.palette.red.bg }]}>
               <Ionicons name="alert-circle" size={16} color={theme.palette.red.fg} />
@@ -482,6 +638,19 @@ function HourPicker({
       })}
     </ScrollView>
   );
+}
+
+function addMonthsISO(iso: string, months: number): string {
+  const d = fromISODate(iso);
+  d.setMonth(d.getMonth() + months);
+  return toISODate(d);
+}
+
+function fiscalYearEndISO(iso: string): string {
+  const d = fromISODate(iso);
+  // 4月以降 → 翌年3/31、3月以前 → 当年3/31
+  const y = d.getMonth() >= 3 ? d.getFullYear() + 1 : d.getFullYear();
+  return `${y}-03-31`;
 }
 
 function formatDateShort(iso: string) {
@@ -619,6 +788,74 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     fontVariant: ['tabular-nums'],
+  },
+  repeatRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  repeatChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  repeatChipText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  repeatUntilRow: {},
+  repeatUntilLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+    marginBottom: 6,
+  },
+  untilChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  untilChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  repeatUntilDate: {
+    marginTop: 6,
+    fontSize: 12,
+    fontWeight: '600',
+    fontVariant: ['tabular-nums'],
+  },
+  pinToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 16,
+  },
+  pinToggleLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  pinToggleSub: {
+    fontSize: 11,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  pinSwitch: {
+    width: 36,
+    height: 20,
+    borderRadius: 10,
+    padding: 2,
+  },
+  pinSwitchKnob: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#fff',
   },
   errorRow: {
     flexDirection: 'row',

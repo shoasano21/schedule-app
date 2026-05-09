@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
-import { END_HOUR, HOUR_HEIGHT, START_HOUR, nowFractionalHour } from '../utils/date';
+import { HOUR_HEIGHT, nowFractionalHour } from '../utils/date';
 
-export function useNowLine(): { topPx: number; visible: boolean; hourFloat: number } {
+export function useNowLine(
+  startHour = 0,
+  endHour = 24
+): { topPx: number; visible: boolean; hourFloat: number } {
   const [hourFloat, setHourFloat] = useState(() => nowFractionalHour());
 
   useEffect(() => {
@@ -9,8 +12,8 @@ export function useNowLine(): { topPx: number; visible: boolean; hourFloat: numb
     return () => clearInterval(id);
   }, []);
 
-  const visible = hourFloat >= START_HOUR && hourFloat <= END_HOUR;
-  const topPx = (hourFloat - START_HOUR) * HOUR_HEIGHT;
+  const visible = hourFloat >= startHour && hourFloat <= endHour;
+  const topPx = (hourFloat - startHour) * HOUR_HEIGHT;
 
   return { topPx, visible, hourFloat };
 }

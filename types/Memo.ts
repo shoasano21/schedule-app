@@ -15,6 +15,8 @@ export interface Memo {
   body: string;
   attachments: MemoAttachment[];
   folderId?: string | null;
+  tags?: string[];
+  pinned?: boolean;
   createdAt: number;
   updatedAt: number;
 }

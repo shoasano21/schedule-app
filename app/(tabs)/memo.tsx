@@ -8,6 +8,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,6 +33,7 @@ export default function MemoScreen() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [folderSheetOpen, setFolderSheetOpen] = useState(false);
   const [filter, setFilter] = useState<string>(FILTER_ALL);
+  const [search, setSearch] = useState('');
 
   const editing = editingId ? memos.find((m) => m.id === editingId) ?? null : null;
 
@@ -88,13 +90,61 @@ export default function MemoScreen() {
     [memos, updateMemo, removeFolder, filter]
   );
 
-  const filteredMemos = useMemo(() => {
-    if (filter === FILTER_ALL) return memos;
-    if (filter === FILTER_UNCATEGORIZED) {
-      return memos.filter((m) => !m.folderId);
+  const togglePin = useCallback(
+    (id: string) => {
+      const target = memos.find((m) => m.id === id);
+      if (!target) return;
+      if (Platform.OS !== 'web') void Haptics.selectionAsync();
+      updateMemo(id, { pinned: !target.pinned });
+    },
+    [memos, updateMemo]
+  );
+
+  // タグ収集 (本文中の #tag からも抽出)
+  const allTags = useMemo(() => {
+    const set = new Set<string>();
+    for (const m of memos) {
+      m.tags?.forEach((t) => set.add(t));
+      const matches = m.body.matchAll(/#([\p{Letter}\p{Number}_]+)/gu);
+      for (const mm of matches) set.add(mm[1]);
     }
-    return memos.filter((m) => m.folderId === filter);
-  }, [memos, filter]);
+    return Array.from(set).sort();
+  }, [memos]);
+
+  const filteredMemos = useMemo(() => {
+    let list = memos;
+
+    // フォルダ フィルタ
+    if (filter === FILTER_UNCATEGORIZED) {
+      list = list.filter((m) => !m.folderId);
+    } else if (filter !== FILTER_ALL && !filter.startsWith('tag:')) {
+      list = list.filter((m) => m.folderId === filter);
+    }
+
+    // タグ フィルタ
+    if (filter.startsWith('tag:')) {
+      const tag = filter.slice(4);
+      list = list.filter((m) => {
+        if (m.tags?.includes(tag)) return true;
+        // 本文の #tag も対象
+        return new RegExp(`(^|\\s)#${escapeRegex(tag)}(\\s|$)`, 'u').test(m.body);
+      });
+    }
+
+    // 全文検索
+    const kw = search.trim().toLowerCase();
+    if (kw) {
+      list = list.filter((m) => {
+        if (m.title.toLowerCase().includes(kw)) return true;
+        if (m.body.toLowerCase().includes(kw)) return true;
+        if (m.attachments.some((a) => a.name.toLowerCase().includes(kw))) return true;
+        if (m.tags?.some((t) => t.toLowerCase().includes(kw))) return true;
+        return false;
+      });
+    }
+
+    return list;
+  }, [memos, filter, search]);
 
   const folderCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -138,40 +188,82 @@ export default function MemoScreen() {
           </Pressable>
         }
         bottom={
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filterRow}
-          >
-            <FilterChip
-              label="すべて"
-              count={folderCounts.total}
-              active={filter === FILTER_ALL}
-              theme={theme}
-              onPress={() => setFilter(FILTER_ALL)}
-            />
-            <FilterChip
-              label="未分類"
-              count={folderCounts.uncategorized}
-              active={filter === FILTER_UNCATEGORIZED}
-              theme={theme}
-              onPress={() => setFilter(FILTER_UNCATEGORIZED)}
-            />
-            {folders.length > 0 ? (
-              <View style={[styles.filterDivider, { backgroundColor: theme.separator }]} />
-            ) : null}
-            {folders.map((f) => (
-              <FilterChip
-                key={f.id}
-                label={f.name}
-                count={folderCounts.counts[f.id] ?? 0}
-                color={f.color}
-                active={filter === f.id}
-                theme={theme}
-                onPress={() => setFilter(f.id)}
+          <>
+            <View
+              style={[
+                styles.searchBar,
+                { backgroundColor: theme.bgSecondary, borderColor: theme.separator },
+              ]}
+            >
+              <Ionicons name="search" size={16} color={theme.textTertiary} />
+              <TextInput
+                value={search}
+                onChangeText={setSearch}
+                placeholder="メモ・タグを検索"
+                placeholderTextColor={theme.textTertiary}
+                style={[styles.searchInput, { color: theme.text }]}
+                autoCorrect={false}
+                returnKeyType="search"
               />
-            ))}
-          </ScrollView>
+              {search ? (
+                <Pressable onPress={() => setSearch('')} hitSlop={8}>
+                  <Ionicons name="close-circle" size={16} color={theme.textTertiary} />
+                </Pressable>
+              ) : null}
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filterRow}
+            >
+              <FilterChip
+                label="すべて"
+                count={folderCounts.total}
+                active={filter === FILTER_ALL}
+                theme={theme}
+                onPress={() => setFilter(FILTER_ALL)}
+              />
+              <FilterChip
+                label="未分類"
+                count={folderCounts.uncategorized}
+                active={filter === FILTER_UNCATEGORIZED}
+                theme={theme}
+                onPress={() => setFilter(FILTER_UNCATEGORIZED)}
+              />
+              {folders.length > 0 ? (
+                <View style={[styles.filterDivider, { backgroundColor: theme.separator }]} />
+              ) : null}
+              {folders.map((f) => (
+                <FilterChip
+                  key={f.id}
+                  label={f.name}
+                  count={folderCounts.counts[f.id] ?? 0}
+                  color={f.color}
+                  active={filter === f.id}
+                  theme={theme}
+                  onPress={() => setFilter(f.id)}
+                />
+              ))}
+              {allTags.length > 0 ? (
+                <View style={[styles.filterDivider, { backgroundColor: theme.separator }]} />
+              ) : null}
+              {allTags.map((t) => (
+                <FilterChip
+                  key={`tag:${t}`}
+                  label={`#${t}`}
+                  count={memos.filter(
+                    (m) =>
+                      m.tags?.includes(t) ||
+                      new RegExp(`(^|\\s)#${escapeRegex(t)}(\\s|$)`, 'u').test(m.body)
+                  ).length}
+                  active={filter === `tag:${t}`}
+                  theme={theme}
+                  onPress={() => setFilter(`tag:${t}`)}
+                />
+              ))}
+            </ScrollView>
+          </>
         }
       />
 
@@ -203,6 +295,7 @@ export default function MemoScreen() {
               theme={theme}
               folder={m.folderId ? folderById.get(m.folderId) ?? null : null}
               onPress={() => handleOpen(m.id)}
+              onTogglePin={() => togglePin(m.id)}
             />
           ))
         )}
@@ -279,11 +372,13 @@ function MemoCard({
   theme,
   folder,
   onPress,
+  onTogglePin,
 }: {
   memo: Memo;
   theme: any;
   folder: { name: string; color: string } | null;
   onPress: () => void;
+  onTogglePin: () => void;
 }) {
   const title = memo.title.trim() || '無題のメモ';
   const snippet = memo.body.trim().slice(0, 120);
@@ -296,8 +391,8 @@ function MemoCard({
       style={({ pressed }) => [
         styles.card,
         {
-          backgroundColor: theme.bgSecondary,
-          borderColor: theme.separator,
+          backgroundColor: memo.pinned ? theme.accentBg : theme.bgSecondary,
+          borderColor: memo.pinned ? theme.accent : theme.separator,
           opacity: pressed ? 0.8 : 1,
         },
       ]}
@@ -314,15 +409,31 @@ function MemoCard({
             </Text>
           </View>
         ) : null}
-        <Text
-          style={[
-            styles.cardTitle,
-            { color: memo.title.trim() ? theme.text : theme.textTertiary },
-          ]}
-          numberOfLines={1}
-        >
-          {title}
-        </Text>
+        <View style={styles.titleRow}>
+          <Text
+            style={[
+              styles.cardTitle,
+              { color: memo.title.trim() ? theme.text : theme.textTertiary, flex: 1 },
+            ]}
+            numberOfLines={1}
+          >
+            {title}
+          </Text>
+          <Pressable
+            onPress={(e) => {
+              e.stopPropagation?.();
+              onTogglePin();
+            }}
+            hitSlop={8}
+            style={styles.pinBtn}
+          >
+            <Ionicons
+              name={memo.pinned ? 'pin' : 'pin-outline'}
+              size={16}
+              color={memo.pinned ? theme.accent : theme.textTertiary}
+            />
+          </Pressable>
+        </View>
         {snippet ? (
           <Text style={[styles.cardBody, { color: theme.textSecondary }]} numberOfLines={2}>
             {snippet}
@@ -357,6 +468,10 @@ function ChipDot({ icon, count, theme }: { icon: any; count: number; theme: any 
       <Text style={[styles.attachChipText, { color: theme.accent }]}>{count}</Text>
     </View>
   );
+}
+
+function escapeRegex(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function countAttachments(list: MemoAttachment[]) {
@@ -427,6 +542,29 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
     marginVertical: 4,
     opacity: 0.6,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginTop: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    paddingVertical: 0,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  pinBtn: {
+    paddingLeft: 6,
   },
   list: {
     paddingHorizontal: 16,

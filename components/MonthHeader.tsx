@@ -13,9 +13,19 @@ interface Props {
   onSearch?: () => void;
   onShare?: () => void;
   viewingName?: string | null;
+  countdown?: { title: string; days: number } | null;
 }
 
-export function MonthHeader({ label, theme, onPrev, onNext, onSearch, onShare, viewingName }: Props) {
+export function MonthHeader({
+  label,
+  theme,
+  onPrev,
+  onNext,
+  onSearch,
+  onShare,
+  viewingName,
+  countdown,
+}: Props) {
   const press = (cb: () => void) => () => {
     if (Platform.OS !== 'web') void Haptics.selectionAsync();
     cb();
@@ -97,6 +107,20 @@ export function MonthHeader({ label, theme, onPrev, onNext, onSearch, onShare, v
                 <Ionicons name="chevron-down" size={13} color={theme.accent} />
               </Pressable>
             ) : null}
+            {countdown ? (
+              <View style={[styles.countdownBar, { backgroundColor: theme.palette.orange.bg }]}>
+                <Ionicons name="flag" size={13} color={theme.palette.orange.fg} />
+                <Text
+                  style={[styles.countdownTitle, { color: theme.palette.orange.fg }]}
+                  numberOfLines={1}
+                >
+                  {countdown.title}
+                </Text>
+                <Text style={[styles.countdownDays, { color: theme.palette.orange.fg }]}>
+                  {countdown.days === 0 ? '今日' : `あと ${countdown.days} 日`}
+                </Text>
+              </View>
+            ) : null}
           </>
         }
       />
@@ -158,5 +182,25 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 12,
     fontWeight: '700',
+  },
+  countdownBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    marginTop: 6,
+    marginHorizontal: 4,
+    borderRadius: 8,
+  },
+  countdownTitle: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  countdownDays: {
+    fontSize: 12,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
   },
 });

@@ -8,6 +8,7 @@ import { EventSearchSheet } from '../../components/EventSearchSheet';
 import { MonthHeader } from '../../components/MonthHeader';
 import { MonthTimeGrid } from '../../components/MonthTimeGrid';
 import { ScheduleShareSheet } from '../../components/ScheduleShareSheet';
+import { usePreferences } from '../../hooks/PreferencesContext';
 import { useEvents } from '../../hooks/useEvents';
 import { useMonth } from '../../hooks/useMonth';
 import { useNowLine } from '../../hooks/useNowLine';
@@ -20,7 +21,8 @@ export default function ScheduleScreen() {
   const insets = useSafeAreaInsets();
   const month = useMonth();
   const events = useEvents();
-  const now = useNowLine();
+  const { gridStartHour, gridEndHour } = usePreferences();
+  const now = useNowLine(gridStartHour, gridEndHour);
   const shared = useSharedSchedules();
 
   const [selected, setSelected] = useState<EventItem | null>(null);
@@ -45,6 +47,23 @@ export default function ScheduleScreen() {
     ? shared.schedules.find((s) => s.id === activeSharedId) ?? null
     : null;
   const isShared = !!activeShared;
+
+  // 重要日 (pinned) の中から今日以降で最も近いものを 1 件 → カウントダウン用
+  const nextCountdown = useMemo(() => {
+    const todayISO = new Date().toISOString().slice(0, 10);
+    const list = (activeSharedId ? activeShared?.events ?? [] : events.events) as typeof events.events;
+    const upcoming = list
+      .filter((e) => e.pinned && e.date >= todayISO)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    if (upcoming.length === 0) return null;
+    const ev = upcoming[0];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const target = new Date(ev.date + 'T00:00:00');
+    const days = Math.round((target.getTime() - today.getTime()) / 86400000);
+    return { title: ev.title, days };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [events.events, activeSharedId]);
 
   // 表示するイベント: 自分 or 共有された人のスナップショット
   const displayEventsByDate = useMemo(() => {
@@ -126,26 +145,24 @@ export default function ScheduleScreen() {
 
   const handleSubmit = useCallback(
     (input: AddEventInput) => {
+      const baseData = {
+        title: input.title,
+        startH: input.startH,
+        endH: input.endH,
+        color: input.color,
+        location: input.location,
+        memo: input.memo,
+        pinned: input.pinned,
+        repeat: input.repeat,
+      };
       if (input.id) {
-        events.updateEvent(input.id, {
-          title: input.title,
-          date: input.date,
-          startH: input.startH,
-          endH: input.endH,
-          color: input.color,
-          location: input.location,
-          memo: input.memo,
-        });
+        // 仮想インスタンス or 繰り返しテンプレートの場合は date を変更しない
+        const realId = input.id.includes('::') ? input.id.split('::')[0] : input.id;
+        const original = events.events.find((e) => e.id === realId);
+        const skipDate = input.id.includes('::') || !!original?.repeat;
+        events.updateEvent(input.id, skipDate ? baseData : { ...baseData, date: input.date });
       } else {
-        events.addEvent({
-          title: input.title,
-          date: input.date,
-          startH: input.startH,
-          endH: input.endH,
-          color: input.color,
-          location: input.location,
-          memo: input.memo,
-        });
+        events.addEvent({ ...baseData, date: input.date });
       }
       setEditorOpen(false);
       setEditing(null);
@@ -163,6 +180,7 @@ export default function ScheduleScreen() {
         onSearch={() => setSearchOpen(true)}
         onShare={() => setShareOpen(true)}
         viewingName={activeShared?.name ?? null}
+        countdown={nextCountdown}
       />
       <MonthTimeGrid
         daysOfMonth={month.daysOfMonth}
@@ -176,6 +194,8 @@ export default function ScheduleScreen() {
         nowFractionalHour={now.hourFloat}
         monthKey={month.label}
         todayTick={todayTick}
+        viewStartHour={gridStartHour}
+        viewEndHour={gridEndHour}
       />
 
       <DetailSheet

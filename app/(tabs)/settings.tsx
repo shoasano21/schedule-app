@@ -47,7 +47,7 @@ const LEAD_OPTIONS: { value: number; label: string }[] = [
   { value: 60, label: '1時間前' },
 ];
 
-type PickerKind = null | 'time' | 'classStart' | 'classEnd';
+type PickerKind = null | 'time' | 'classStart' | 'classEnd' | 'gridStart' | 'gridEnd';
 
 export default function SettingsScreen() {
   const theme = useTheme();
@@ -319,6 +319,83 @@ export default function SettingsScreen() {
           </View>
         </Group>
 
+        <SectionHeader theme={theme} title="月間グリッド表示時間" />
+        <Group theme={theme}>
+          <View style={styles.col}>
+            <Text style={[styles.rowLabel, { color: theme.text }]}>
+              {prefs.gridStartHour.toString().padStart(2, '0')}:00 〜{' '}
+              {prefs.gridEndHour.toString().padStart(2, '0')}:00
+            </Text>
+            <Text style={[styles.rowSub, { color: theme.textTertiary, marginBottom: 8 }]}>
+              月間スケジュールに表示する時間帯
+            </Text>
+            <View style={styles.gridRangeRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.rangeLabel, { color: theme.textTertiary }]}>開始</Text>
+                <Pressable
+                  onPress={() => setPicker('gridStart')}
+                  style={[
+                    styles.rangeBtn,
+                    { backgroundColor: theme.bgSecondary, borderColor: theme.separator },
+                  ]}
+                >
+                  <Text style={[styles.rangeValue, { color: theme.text }]}>
+                    {prefs.gridStartHour.toString().padStart(2, '0')}:00
+                  </Text>
+                </Pressable>
+              </View>
+              <Ionicons name="arrow-forward" size={14} color={theme.textTertiary} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.rangeLabel, { color: theme.textTertiary }]}>終了</Text>
+                <Pressable
+                  onPress={() => setPicker('gridEnd')}
+                  style={[
+                    styles.rangeBtn,
+                    { backgroundColor: theme.bgSecondary, borderColor: theme.separator },
+                  ]}
+                >
+                  <Text style={[styles.rangeValue, { color: theme.text }]}>
+                    {prefs.gridEndHour.toString().padStart(2, '0')}:00
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+            <View style={styles.presetRow}>
+              {[
+                { label: '0–24', s: 0, e: 24 },
+                { label: '6–22', s: 6, e: 22 },
+                { label: '7–20', s: 7, e: 20 },
+                { label: '8–18', s: 8, e: 18 },
+              ].map((p) => {
+                const active =
+                  prefs.gridStartHour === p.s && prefs.gridEndHour === p.e;
+                return (
+                  <Pressable
+                    key={p.label}
+                    onPress={() => prefs.setGridRange(p.s, p.e)}
+                    style={[
+                      styles.presetBtn,
+                      {
+                        backgroundColor: active ? theme.accent : theme.bgSecondary,
+                        borderColor: active ? theme.accent : theme.separator,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.presetText,
+                        { color: active ? '#fff' : theme.text },
+                      ]}
+                    >
+                      {p.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        </Group>
+
         <SectionHeader theme={theme} title="テーマカラー" />
         <Group theme={theme}>
           <View style={[styles.col, { opacity: iap.isPro ? 1 : 0.55 }]}>
@@ -531,6 +608,54 @@ export default function SettingsScreen() {
             options={LEAD_OPTIONS}
             value={settings.classEndLead}
             onChange={(v) => update({ classEndLead: v })}
+            theme={theme}
+            wrap
+          />
+        </View>
+      </BottomSheet>
+
+      <BottomSheet
+        visible={picker === 'gridStart'}
+        onClose={() => setPicker(null)}
+        theme={theme}
+        maxHeightRatio={0.5}
+      >
+        <PickerHeader theme={theme} title="表示開始時刻" onDone={() => setPicker(null)} />
+        <View style={pickerStyles.body}>
+          <PillScroll
+            options={Array.from({ length: 24 }, (_, h) => ({
+              value: h,
+              label: `${h.toString().padStart(2, '0')}:00`,
+            }))}
+            value={prefs.gridStartHour}
+            onChange={(v) => {
+              const e = v < prefs.gridEndHour ? prefs.gridEndHour : Math.min(24, v + 1);
+              prefs.setGridRange(v, e);
+            }}
+            theme={theme}
+            wrap
+          />
+        </View>
+      </BottomSheet>
+
+      <BottomSheet
+        visible={picker === 'gridEnd'}
+        onClose={() => setPicker(null)}
+        theme={theme}
+        maxHeightRatio={0.5}
+      >
+        <PickerHeader theme={theme} title="表示終了時刻" onDone={() => setPicker(null)} />
+        <View style={pickerStyles.body}>
+          <PillScroll
+            options={Array.from({ length: 24 }, (_, i) => ({
+              value: i + 1,
+              label: `${(i + 1).toString().padStart(2, '0')}:00`,
+            }))}
+            value={prefs.gridEndHour}
+            onChange={(v) => {
+              const s = v > prefs.gridStartHour ? prefs.gridStartHour : Math.max(0, v - 1);
+              prefs.setGridRange(s, v);
+            }}
             theme={theme}
             wrap
           />
@@ -932,6 +1057,44 @@ const styles = StyleSheet.create({
   },
   appearanceLabel: {
     fontSize: 13,
+    fontWeight: '700',
+  },
+  gridRangeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10,
+  },
+  rangeLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+    marginBottom: 4,
+  },
+  rangeBtn: {
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  rangeValue: {
+    fontSize: 15,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  presetRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  presetBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  presetText: {
+    fontSize: 12,
     fontWeight: '700',
   },
   swatchOuter: {

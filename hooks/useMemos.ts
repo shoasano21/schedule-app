@@ -104,7 +104,11 @@ export function useMemos() {
     [persist]
   );
 
-  const sortedMemos = [...memos].sort((a, b) => b.updatedAt - a.updatedAt);
+  // ピン留めを上、その後更新日時降順
+  const sortedMemos = [...memos].sort((a, b) => {
+    if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
+    return b.updatedAt - a.updatedAt;
+  });
 
   return {
     memos: sortedMemos,

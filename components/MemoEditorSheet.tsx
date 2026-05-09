@@ -51,6 +51,7 @@ export function MemoEditorSheet({
   const [busy, setBusy] = useState(false);
   const [showNewFolderInput, setShowNewFolderInput] = useState(false);
   const [folderDraft, setFolderDraft] = useState('');
+  const [tagDraft, setTagDraft] = useState('');
 
   useEffect(() => {
     if (!visible || !memo) return;
@@ -60,6 +61,7 @@ export function MemoEditorSheet({
     setShowUrlInput(false);
     setShowNewFolderInput(false);
     setFolderDraft('');
+    setTagDraft('');
   }, [visible, memo?.id]);
 
   if (!memo) return null;
@@ -75,6 +77,22 @@ export function MemoEditorSheet({
 
   const addAttachment = (att: MemoAttachment) => {
     onChange({ attachments: [...memo.attachments, att] });
+  };
+
+  const handleAddTag = () => {
+    const t = tagDraft.trim().replace(/^#/, '').slice(0, 20);
+    if (!t) return;
+    const current = memo.tags ?? [];
+    if (current.includes(t)) {
+      setTagDraft('');
+      return;
+    }
+    onChange({ tags: [...current, t] });
+    setTagDraft('');
+  };
+
+  const handleRemoveTag = (t: string) => {
+    onChange({ tags: (memo.tags ?? []).filter((x) => x !== t) });
   };
 
   const handleAddUrl = () => {
@@ -277,6 +295,51 @@ export function MemoEditorSheet({
               </Pressable>
             </View>
           ) : null}
+
+          <Text style={[styles.sectionLabel, { color: theme.textTertiary, marginTop: 14 }]}>
+            🏷 タグ
+          </Text>
+          <View style={styles.tagWrap}>
+            {(memo.tags ?? []).map((t) => (
+              <Pressable
+                key={t}
+                onPress={() => handleRemoveTag(t)}
+                style={[
+                  styles.tagChip,
+                  { backgroundColor: theme.accentBg, borderColor: theme.accent },
+                ]}
+              >
+                <Text style={[styles.tagText, { color: theme.accent }]}>#{t}</Text>
+                <Ionicons name="close" size={11} color={theme.accent} />
+              </Pressable>
+            ))}
+            <View style={styles.tagInputWrap}>
+              <TextInput
+                value={tagDraft}
+                onChangeText={setTagDraft}
+                onSubmitEditing={handleAddTag}
+                placeholder="タグを追加 (例: 数学)"
+                placeholderTextColor={theme.textTertiary}
+                maxLength={20}
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="done"
+                style={[
+                  styles.tagInput,
+                  { backgroundColor: theme.bgSecondary, color: theme.text },
+                ]}
+              />
+              {tagDraft.trim() ? (
+                <Pressable
+                  onPress={handleAddTag}
+                  hitSlop={6}
+                  style={[styles.tagAddBtn, { backgroundColor: theme.accent }]}
+                >
+                  <Ionicons name="add" size={14} color="#fff" />
+                </Pressable>
+              ) : null}
+            </View>
+          </View>
 
           <View style={[styles.divider, { backgroundColor: theme.separator }]} />
 
@@ -637,6 +700,44 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 13,
     fontWeight: '700',
+  },
+  tagWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    alignItems: 'center',
+  },
+  tagChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  tagText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  tagInputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  tagInput: {
+    minWidth: 130,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    fontSize: 12,
+  },
+  tagAddBtn: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   attachHeader: {
     flexDirection: 'row',

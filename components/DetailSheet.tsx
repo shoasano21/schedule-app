@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Theme } from '../constants/colors';
 import type { EventItem } from '../types/Event';
 import { fromISODate } from '../utils/date';
@@ -17,6 +17,25 @@ interface Props {
 }
 
 export function DetailSheet({ visible, event, theme, readOnly, onClose, onEdit, onDelete }: Props) {
+  const handleDelete = (ev: EventItem) => {
+    const isRecurring = !!ev.repeat || !!ev.baseId;
+    if (!isRecurring) {
+      onDelete(ev);
+      return;
+    }
+    const msg = 'この予定は繰り返しイベントです。シリーズ全体を削除しますか？';
+    if (Platform.OS === 'web') {
+      // eslint-disable-next-line no-alert
+      const ok = window.confirm(msg);
+      if (ok) onDelete(ev);
+      return;
+    }
+    Alert.alert('繰り返しイベントの削除', msg, [
+      { text: 'キャンセル', style: 'cancel' },
+      { text: 'シリーズを削除', style: 'destructive', onPress: () => onDelete(ev) },
+    ]);
+  };
+
   return (
     <BottomSheet visible={visible} onClose={onClose} theme={theme} maxHeightRatio={0.7}>
       {event ? (
@@ -43,6 +62,18 @@ export function DetailSheet({ visible, event, theme, readOnly, onClose, onEdit, 
             icon="time-outline"
             label={`${pad2(event.startH)}:00 — ${pad2(event.endH)}:00 (${event.endH - event.startH}時間)`}
           />
+          {event.repeat ? (
+            <Row
+              theme={theme}
+              icon="repeat-outline"
+              label={`${repeatLabel(event.repeat.freq)}${
+                event.repeat.until ? ` (${event.repeat.until} まで)` : ''
+              }`}
+            />
+          ) : null}
+          {event.pinned ? (
+            <Row theme={theme} icon="flag" label="重要日 (カウントダウン中)" />
+          ) : null}
           {event.location ? (
             <Row theme={theme} icon="location-outline" label={event.location} />
           ) : null}
@@ -83,7 +114,7 @@ export function DetailSheet({ visible, event, theme, readOnly, onClose, onEdit, 
                 <Text style={[styles.actionLabel, { color: theme.accent }]}>編集</Text>
               </Pressable>
               <Pressable
-                onPress={() => onDelete(event)}
+                onPress={() => handleDelete(event)}
                 style={({ pressed }) => [
                   styles.actionBtn,
                   {
@@ -116,6 +147,12 @@ function Row({ theme, icon, label }: { theme: Theme; icon: any; label: string })
 
 function pad2(n: number) {
   return String(n).padStart(2, '0');
+}
+
+function repeatLabel(freq: 'daily' | 'weekly' | 'monthly'): string {
+  if (freq === 'daily') return '🔁 毎日';
+  if (freq === 'weekly') return '🔁 毎週';
+  return '🔁 毎月';
 }
 
 function formatDateJa(iso: string) {
