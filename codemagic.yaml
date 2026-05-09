@@ -36,6 +36,35 @@ workflows:
             /usr/libexec/PlistBuddy -c "Delete :aps-environment" "$ENT" 2>/dev/null || true
             cat "$ENT"
           done
+      - name: Fix share extension NSExtensionActivationRule
+        script: |
+          set -e
+          # Find share extension's Info.plist (avoid Pods, .app bundles)
+          SHARE_PLIST=$(find ios -name "Info.plist" \
+            ! -path "*Pods*" \
+            ! -path "*build*" \
+            ! -path "*.app/*" \
+            -exec sh -c 'grep -l "com.apple.share-services" "$1" >/dev/null && echo "$1"' sh {} \; | head -1)
+
+          if [ -z "$SHARE_PLIST" ]; then
+            echo "(no share extension Info.plist found, skipping)"
+            exit 0
+          fi
+
+          echo "--- found: $SHARE_PLIST ---"
+          echo "--- before ---"
+          cat "$SHARE_PLIST"
+
+          # Delete existing rule (could be string TRUEPREDICATE or wrong dict)
+          /usr/libexec/PlistBuddy -c "Delete :NSExtension:NSExtensionAttributes:NSExtensionActivationRule" "$SHARE_PLIST" 2>/dev/null || true
+
+          # Add proper structured rule (URL + Text only — App Store compliant)
+          /usr/libexec/PlistBuddy -c "Add :NSExtension:NSExtensionAttributes:NSExtensionActivationRule dict" "$SHARE_PLIST"
+          /usr/libexec/PlistBuddy -c "Add :NSExtension:NSExtensionAttributes:NSExtensionActivationRule:NSExtensionActivationSupportsWebURLWithMaxCount integer 1" "$SHARE_PLIST"
+          /usr/libexec/PlistBuddy -c "Add :NSExtension:NSExtensionAttributes:NSExtensionActivationRule:NSExtensionActivationSupportsText bool true" "$SHARE_PLIST"
+
+          echo "--- after ---"
+          cat "$SHARE_PLIST"
       - name: Set up code signing (delete EAS cert, create fresh with explicit key)
         script: |
           set -e
