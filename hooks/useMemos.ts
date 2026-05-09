@@ -92,6 +92,18 @@ export function useMemos() {
     [persist]
   );
 
+  const insertMemos = useCallback(
+    (incoming: Memo[]) => {
+      if (incoming.length === 0) return;
+      setMemos((prev) => {
+        const next = [...incoming, ...prev];
+        void persist(next);
+        return next;
+      });
+    },
+    [persist]
+  );
+
   const sortedMemos = [...memos].sort((a, b) => b.updatedAt - a.updatedAt);
 
   return {
@@ -100,5 +112,6 @@ export function useMemos() {
     createMemo,
     updateMemo,
     removeMemo,
+    insertMemos,
   };
 }

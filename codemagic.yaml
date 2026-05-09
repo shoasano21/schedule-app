@@ -53,8 +53,8 @@ workflows:
             done
           done
 
-          # Step 2: 既存 App Store プロファイルを削除 (メイン + ウィジェット)
-          for BUNDLE in com.shoasano.scheduleapp com.shoasano.scheduleapp.widget; do
+          # Step 2: 既存 App Store プロファイルを削除 (メイン + ウィジェット + シェア)
+          for BUNDLE in com.shoasano.scheduleapp com.shoasano.scheduleapp.widget com.shoasano.scheduleapp.share; do
             PROFILE_IDS=$(app-store-connect profiles list \
               --bundle-id-identifier "$BUNDLE" \
               --json 2>/dev/null \
@@ -85,10 +85,16 @@ workflows:
             --create \
             --certificate-key=@file:/tmp/cert_private_key.pem
 
-          # Step 7: ウィジェット拡張ターゲットの cert + profile 作成
-          # @bacons/apple-targets が widget の bundle id を <main>.widget で生成する
+          # Step 7: ウィジェット拡張ターゲットの profile 作成
           app-store-connect fetch-signing-files \
             com.shoasano.scheduleapp.widget \
+            --type IOS_APP_STORE \
+            --create \
+            --certificate-key=@file:/tmp/cert_private_key.pem
+
+          # Step 8: 共有拡張ターゲットの profile 作成
+          app-store-connect fetch-signing-files \
+            com.shoasano.scheduleapp.share \
             --type IOS_APP_STORE \
             --create \
             --certificate-key=@file:/tmp/cert_private_key.pem
