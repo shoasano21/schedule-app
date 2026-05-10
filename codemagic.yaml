@@ -97,10 +97,25 @@ workflows:
 
           echo "--- installed profiles ---"
           ls -la "$HOME/Library/MobileDevice/Provisioning Profiles/" || true
-      - name: Set build number
+      - name: Set build number (commit count + offset, guaranteed monotonic)
         script: |
+          set -e
+          # git の commit 数をそのまま buildNumber に使うと、重複アップロードを完全防止できる。
+          # 既存 App Store ビルドが N まで使われていることを想定し、+1000 のオフセットを足して安全マージン。
+          cd "$CM_BUILD_DIR"
+          GIT_COUNT=$(git rev-list --count HEAD)
+          NEW_BN=$((GIT_COUNT + 1000))
+          echo "==========================================="
+          echo "git commit count: $GIT_COUNT"
+          echo "Codemagic BUILD_NUMBER: $BUILD_NUMBER"
+          echo "Final iOS buildNumber:  $NEW_BN"
+          echo "==========================================="
           cd ios
-          agvtool new-version -all $BUILD_NUMBER
+          agvtool new-version -all $NEW_BN
+          echo "--- agvtool result ---"
+          agvtool what-version
+          # Info.plist を直接 grep して全ターゲットに反映されたか確認
+          find . -name "Info.plist" -exec sh -c 'echo "=== $1 ==="; /usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$1" 2>/dev/null || true' sh {} \;
       - name: Build ipa for App Store
         script: |
           WORKSPACE_PATH=$(find ios -name "*.xcworkspace" -type d | head -1)

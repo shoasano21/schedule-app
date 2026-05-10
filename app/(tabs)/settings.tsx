@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 import * as Haptics from 'expo-haptics';
 import React, { useState } from 'react';
 import {
@@ -612,6 +613,16 @@ export default function SettingsScreen() {
             <Ionicons name="chevron-forward" size={16} color={theme.textTertiary} />
           </Pressable>
         </Group>
+
+        <Text style={[styles.versionText, { color: theme.textTertiary }]}>
+          Cadence v
+          {Constants.nativeAppVersion ?? Constants.expoConfig?.version ?? '?'}
+          {Constants.nativeBuildVersion
+            ? ` (${Constants.nativeBuildVersion})`
+            : Constants.expoConfig?.ios?.buildNumber
+            ? ` (${Constants.expoConfig.ios.buildNumber})`
+            : ''}
+        </Text>
       </ScrollView>
 
       <BottomSheet
@@ -1209,6 +1220,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: -10,
     marginBottom: 18,
+  },
+  versionText: {
+    fontSize: 11,
+    fontWeight: '600',
+    textAlign: 'center',
+    paddingTop: 24,
+    paddingBottom: 8,
+    fontVariant: ['tabular-nums'],
   },
   rowLabelOnly: {
     flex: 1,
