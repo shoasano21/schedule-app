@@ -17,7 +17,9 @@
         "NSCameraUsageDescription": "他の人が表示している QR コードを読み取るため、カメラへのアクセスを許可してください。",
         "NSMicrophoneUsageDescription": "メモに音声を添付するため、マイクへのアクセスを許可してください。",
         "NSPhotoLibraryUsageDescription": "メモに添付する写真を選択するため、写真ライブラリへのアクセスを許可してください。",
-        "NSLocationWhenInUseUsageDescription": "現在地の天気予報を取得するため、位置情報の使用を許可してください。"
+        "NSPhotoLibraryAddUsageDescription": "メモから書き出した画像を保存するため、写真ライブラリへの書き込みを許可してください。",
+        "NSLocationWhenInUseUsageDescription": "現在地の天気予報を取得するため、位置情報の使用を許可してください。",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "現在地の天気予報を取得するため、位置情報の使用を許可してください。"
       },
       "entitlements": {
         "com.apple.security.application-groups": ["group.com.shoasano.scheduleapp"]
