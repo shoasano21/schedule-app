@@ -11,7 +11,6 @@ import React from 'react';
 import { useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { IAPProvider } from '../hooks/IAPContext';
 import { PreferencesProvider, usePreferences } from '../hooks/PreferencesContext';
 
 function ThemedStatusBar() {
@@ -35,12 +34,10 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <PreferencesProvider>
-          <IAPProvider>
-            <ThemedStatusBar />
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="(tabs)" />
-            </Stack>
-          </IAPProvider>
+          <ThemedStatusBar />
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(tabs)" />
+          </Stack>
         </PreferencesProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

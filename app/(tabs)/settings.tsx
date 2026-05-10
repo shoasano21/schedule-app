@@ -16,10 +16,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ACCENT_IDS, ACCENT_PRESETS, type AccentId } from '../../constants/accents';
 import { BottomSheet } from '../../components/BottomSheet';
-import { PaywallSheet } from '../../components/PaywallSheet';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { SyllabusImportSheet } from '../../components/SyllabusImportSheet';
-import { useIAPContext } from '../../hooks/IAPContext';
 import { usePreferences } from '../../hooks/PreferencesContext';
 import { useClassNotifications } from '../../hooks/useClassNotifications';
 import { useBackup } from '../../hooks/useBackup';
@@ -83,8 +81,6 @@ export default function SettingsScreen() {
   useWidgetSync(events.events, events.hydrated);
 
   const [picker, setPicker] = useState<PickerKind>(null);
-  const iap = useIAPContext();
-  const [paywallOpen, setPaywallOpen] = useState(false);
   const prefs = usePreferences();
   const ics = useICSExport();
   const icsImport = useICSImport();
@@ -103,28 +99,16 @@ export default function SettingsScreen() {
   };
 
   const handleExportICS = async () => {
-    if (!iap.isPro) {
-      setPaywallOpen(true);
-      return;
-    }
     if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await ics.exportICS(events.events, `cadence-${new Date().toISOString().slice(0, 10)}.ics`);
   };
 
   const handleBackup = async () => {
-    if (!iap.isPro) {
-      setPaywallOpen(true);
-      return;
-    }
     if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await backup.exportBackup();
   };
 
   const handleRestore = async () => {
-    if (!iap.isPro) {
-      setPaywallOpen(true);
-      return;
-    }
     if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (Platform.OS === 'web') {
       const ok = window.confirm(
@@ -479,15 +463,8 @@ export default function SettingsScreen() {
 
         <SectionHeader theme={theme} title="テーマカラー" />
         <Group theme={theme}>
-          <View style={[styles.col, { opacity: iap.isPro ? 1 : 0.55 }]}>
-            <View style={styles.themeHeaderRow}>
-              <Text style={[styles.rowLabel, { color: theme.text }]}>アクセントカラー</Text>
-              {!iap.isPro ? (
-                <View style={[styles.proBadge, { backgroundColor: theme.accentBg }]}>
-                  <Text style={[styles.proBadgeText, { color: theme.accent }]}>PRO</Text>
-                </View>
-              ) : null}
-            </View>
+          <View style={styles.col}>
+            <Text style={[styles.rowLabel, { color: theme.text }]}>アクセントカラー</Text>
             <Text style={[styles.rowSub, { color: theme.textTertiary, marginBottom: 12 }]}>
               アプリ全体のアクセントカラーを変更
             </Text>
@@ -501,10 +478,6 @@ export default function SettingsScreen() {
                     key={id}
                     onPress={() => {
                       if (Platform.OS !== 'web') void Haptics.selectionAsync();
-                      if (!iap.isPro) {
-                        setPaywallOpen(true);
-                        return;
-                      }
                       prefs.setAccent(id);
                     }}
                     style={[
@@ -610,13 +583,7 @@ export default function SettingsScreen() {
                 すべてのデータを JSON で保存（機種変更時に便利）
               </Text>
             </View>
-            {!iap.isPro ? (
-              <View style={[styles.proBadge, { backgroundColor: theme.accentBg }]}>
-                <Text style={[styles.proBadgeText, { color: theme.accent }]}>PRO</Text>
-              </View>
-            ) : (
-              <Ionicons name="chevron-forward" size={16} color={theme.textTertiary} />
-            )}
+            <Ionicons name="chevron-forward" size={16} color={theme.textTertiary} />
           </Pressable>
 
           <Pressable
@@ -638,13 +605,7 @@ export default function SettingsScreen() {
                 書き出した JSON ファイルを読み込んで復元
               </Text>
             </View>
-            {!iap.isPro ? (
-              <View style={[styles.proBadge, { backgroundColor: theme.accentBg }]}>
-                <Text style={[styles.proBadgeText, { color: theme.accent }]}>PRO</Text>
-              </View>
-            ) : (
-              <Ionicons name="chevron-forward" size={16} color={theme.textTertiary} />
-            )}
+            <Ionicons name="chevron-forward" size={16} color={theme.textTertiary} />
           </Pressable>
         </Group>
 
@@ -833,23 +794,6 @@ export default function SettingsScreen() {
         }}
       />
 
-      <PaywallSheet
-        visible={paywallOpen}
-        theme={theme}
-        isPro={iap.isPro}
-        product={iap.product}
-        busy={iap.busy}
-        error={iap.error}
-        onClose={() => setPaywallOpen(false)}
-        onPurchase={async () => {
-          const ok = await iap.purchase();
-          if (ok) setPaywallOpen(false);
-        }}
-        onRestore={async () => {
-          const ok = await iap.restore();
-          if (ok) setPaywallOpen(false);
-        }}
-      />
     </View>
   );
 }
