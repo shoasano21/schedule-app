@@ -58,17 +58,13 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "メモに添付する写真を選択するため、写真ライブラリへのアクセスを許可してください。",
-          "cameraPermission": false,
-          "microphonePermission": false
+          "photosPermission": "メモに添付する写真を選択するため、写真ライブラリへのアクセスを許可してください。"
         }
       ],
       [
         "expo-camera",
         {
-          "cameraPermission": "他の人が表示している QR コードを読み取るため、カメラへのアクセスを許可してください。",
-          "microphonePermission": false,
-          "recordAudioAndroid": false
+          "cameraPermission": "他の人が表示している QR コードを読み取るため、カメラへのアクセスを許可してください。"
         }
       ],
       [
