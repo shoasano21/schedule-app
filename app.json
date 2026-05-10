@@ -8,11 +8,6 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0A84FF"
-    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.shoasano.scheduleapp",
@@ -41,6 +36,19 @@
       "expo-router",
       "expo-font",
       "expo-web-browser",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "backgroundColor": "#0A84FF",
+          "dark": {
+            "image": "./assets/splash-icon.png",
+            "backgroundColor": "#001A66"
+          }
+        }
+      ],
       [
         "expo-image-picker",
         {
