@@ -852,18 +852,18 @@ function ToggleBtn({
       onPress={onPress}
       disabled={disabled}
       style={({ pressed }) => [
-        styles.iconBtn,
+        styles.switchTrack,
         {
-          backgroundColor: active ? theme.accent : theme.bg,
-          borderColor: active ? theme.accent : theme.separator,
+          backgroundColor: active ? theme.accent : theme.separator,
           opacity: disabled ? 0.4 : pressed ? 0.7 : 1,
         },
       ]}
     >
-      <Ionicons
-        name={active ? 'notifications' : 'notifications-outline'}
-        size={22}
-        color={active ? '#fff' : theme.textSecondary}
+      <View
+        style={[
+          styles.switchKnob,
+          { transform: [{ translateX: active ? 18 : 0 }] },
+        ]}
       />
     </Pressable>
   );
@@ -1218,6 +1218,23 @@ const styles = StyleSheet.create({
   rowValue: {
     fontSize: 13,
     fontWeight: '500',
+  },
+  switchTrack: {
+    width: 44,
+    height: 26,
+    borderRadius: 13,
+    padding: 3,
+  },
+  switchKnob: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 2,
   },
   iconBtn: {
     width: 56,
