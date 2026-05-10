@@ -16,7 +16,7 @@ import { NowLine } from './NowLine';
 
 const TIME_AXIS_WIDTH = 44;
 const COL_WIDTH = 56;
-const HEADER_HEIGHT = 56;
+const HEADER_HEIGHT = 72;
 const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
 
 export interface OverlayLayer {
@@ -423,8 +423,8 @@ const styles = StyleSheet.create({
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 6,
-    gap: 2,
+    paddingVertical: 4,
+    gap: 1,
   },
   headerDow: {
     fontSize: 10,
@@ -432,9 +432,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   headerWeather: {
-    fontSize: 11,
-    marginTop: 1,
-    lineHeight: 13,
+    marginTop: 2,
   },
   headerDayWrap: {
     minWidth: 24,

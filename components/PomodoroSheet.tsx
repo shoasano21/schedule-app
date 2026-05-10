@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import React, { useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { Theme } from '../constants/colors';
 import { useFocusMode } from '../hooks/useFocusMode';
 import type { StudySession } from '../types/StudySession';
@@ -157,7 +157,7 @@ export function PomodoroSheet({
   const progress = totalSec > 0 ? 1 - remaining / totalSec : 0;
 
   return (
-    <BottomSheet visible={visible} onClose={onClose} theme={theme} maxHeightRatio={0.7}>
+    <BottomSheet visible={visible} onClose={onClose} theme={theme} maxHeightRatio={0.92}>
       <View style={styles.headerRow}>
         <Pressable
           onPress={() => {
@@ -172,7 +172,11 @@ export function PomodoroSheet({
         <View style={{ width: 60 }} />
       </View>
 
-      <View style={styles.body}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.body}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={[styles.phaseBadge, { backgroundColor: isBreak ? theme.palette.green.bg : theme.accentBg }]}>
           <Ionicons
             name={isBreak ? 'cafe-outline' : 'flame'}
@@ -326,7 +330,7 @@ export function PomodoroSheet({
             </Pressable>
           </View>
         )}
-      </View>
+      </ScrollView>
     </BottomSheet>
   );
 }

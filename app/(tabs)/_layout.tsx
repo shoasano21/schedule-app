@@ -65,8 +65,10 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="stats"
         options={{
-          // 旧記録タブは非表示
-          href: null,
+          title: '学習',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="flame" size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen

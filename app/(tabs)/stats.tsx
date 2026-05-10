@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import React, { useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PomodoroSheet } from '../../components/PomodoroSheet';
+import { ScreenHeader } from '../../components/ScreenHeader';
 import { useStudySessions } from '../../hooks/useStudySessions';
 import { useTheme } from '../../hooks/useTheme';
 
@@ -18,13 +18,7 @@ export default function StatsScreen() {
 
   return (
     <View style={[{ flex: 1, backgroundColor: theme.bg, paddingTop: insets.top }]}>
-      <View style={styles.headerRow}>
-        <Pressable onPress={() => router.back()} hitSlop={10}>
-          <Ionicons name="chevron-back" size={26} color={theme.accent} />
-        </Pressable>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>学習履歴</Text>
-        <View style={{ width: 26 }} />
-      </View>
+      <ScreenHeader title="学習" theme={theme} />
 
       <ScrollView
         style={{ flex: 1 }}
