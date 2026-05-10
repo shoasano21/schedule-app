@@ -3,7 +3,7 @@
     "name": "Cadence",
     "slug": "schedule-app",
     "scheme": "scheduleapp",
-    "version": "1.0.0",
+    "version": "1.1.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.shoasano.scheduleapp",
-      "buildNumber": "28",
+      "buildNumber": "3",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
@@ -61,6 +61,12 @@
         "expo-av",
         {
           "microphonePermission": "メモに音声を添付するため、マイクへのアクセスを許可してください。"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "現在地の天気予報を取得するため、位置情報の使用を許可してください。"
         }
       ],
       [

@@ -39,8 +39,8 @@ function classify(wmo: number): WeatherCode {
   return 'unknown';
 }
 
-const TOKYO_LAT = 35.6895;
-const TOKYO_LNG = 139.6917;
+export const TOKYO_LAT = 35.6895;
+export const TOKYO_LNG = 139.6917;
 
 async function fetchOpenMeteo(lat: number, lng: number): Promise<DailyWeather[]> {
   const url =
@@ -69,34 +69,43 @@ async function fetchOpenMeteo(lat: number, lng: number): Promise<DailyWeather[]>
   return out;
 }
 
-export function useWeather(enabled: boolean) {
+export function useWeather(
+  enabled: boolean,
+  lat: number = TOKYO_LAT,
+  lng: number = TOKYO_LNG
+) {
   const [byDate, setByDate] = useState<Map<string, DailyWeather>>(new Map());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const refresh = useCallback(async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      const daily = await fetchOpenMeteo(TOKYO_LAT, TOKYO_LNG);
-      const map = new Map<string, DailyWeather>();
-      for (const d of daily) map.set(d.date, d);
-      setByDate(map);
-      const cached: CachedWeather = {
-        fetchedAt: Date.now(),
-        lat: TOKYO_LAT,
-        lng: TOKYO_LNG,
-        daily,
-      };
+  const refresh = useCallback(
+    async (overrideLat?: number, overrideLng?: number) => {
+      setBusy(true);
+      setError(null);
+      const fetchLat = overrideLat ?? lat;
+      const fetchLng = overrideLng ?? lng;
       try {
-        await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(cached));
-      } catch {}
-    } catch (e: any) {
-      setError(e?.message ?? '天気の取得に失敗');
-    } finally {
-      setBusy(false);
-    }
-  }, []);
+        const daily = await fetchOpenMeteo(fetchLat, fetchLng);
+        const map = new Map<string, DailyWeather>();
+        for (const d of daily) map.set(d.date, d);
+        setByDate(map);
+        const cached: CachedWeather = {
+          fetchedAt: Date.now(),
+          lat: fetchLat,
+          lng: fetchLng,
+          daily,
+        };
+        try {
+          await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(cached));
+        } catch {}
+      } catch (e: any) {
+        setError(e?.message ?? '天気の取得に失敗');
+      } finally {
+        setBusy(false);
+      }
+    },
+    [lat, lng]
+  );
 
   useEffect(() => {
     if (!enabled) {
@@ -109,8 +118,12 @@ export function useWeather(enabled: boolean) {
         const raw = await AsyncStorage.getItem(CACHE_KEY);
         if (raw) {
           const parsed = JSON.parse(raw) as CachedWeather;
+          // 同じ位置 + キャッシュ有効期限内なら再利用
+          const sameLoc =
+            Math.abs(parsed.lat - lat) < 0.1 && Math.abs(parsed.lng - lng) < 0.1;
           if (
             parsed?.daily &&
+            sameLoc &&
             Date.now() - parsed.fetchedAt < CACHE_TTL_MS &&
             !cancelled
           ) {
@@ -126,7 +139,7 @@ export function useWeather(enabled: boolean) {
     return () => {
       cancelled = true;
     };
-  }, [enabled, refresh]);
+  }, [enabled, lat, lng, refresh]);
 
   return { byDate, busy, error, refresh };
 }
@@ -147,5 +160,25 @@ export function weatherEmoji(code: WeatherCode): string {
       return '🌫';
     default:
       return '';
+  }
+}
+
+/** Ionicons 名 + 推奨カラーキーを返す (絵文字より見た目が確実) */
+export function weatherIcon(code: WeatherCode): { icon: string; color: string } | null {
+  switch (code) {
+    case 'sun':
+      return { icon: 'sunny', color: '#FF9500' };
+    case 'cloud':
+      return { icon: 'cloud', color: '#8E8E93' };
+    case 'rain':
+      return { icon: 'rainy', color: '#0A84FF' };
+    case 'thunder':
+      return { icon: 'thunderstorm', color: '#5E5CE6' };
+    case 'snow':
+      return { icon: 'snow', color: '#64D2FF' };
+    case 'fog':
+      return { icon: 'reorder-three', color: '#8E8E93' };
+    default:
+      return null;
   }
 }

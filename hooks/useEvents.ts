@@ -6,6 +6,7 @@ import { fromISODate, toISODate } from '../utils/date';
 
 const STORAGE_KEY = 'schedule-app:events:v1';
 const SEED_FLAG_KEY = 'schedule-app:seeded:v1';
+const COUNTDOWN_SEED_FLAG_KEY = 'schedule-app:countdown-seeded:v1';
 
 function makeId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
@@ -71,18 +72,32 @@ export function useEvents() {
     let cancelled = false;
     (async () => {
       try {
-        const [eventsRaw, seeded] = await Promise.all([
+        const [eventsRaw, seeded, countdownSeeded] = await Promise.all([
           AsyncStorage.getItem(STORAGE_KEY),
           AsyncStorage.getItem(SEED_FLAG_KEY),
+          AsyncStorage.getItem(COUNTDOWN_SEED_FLAG_KEY),
         ]);
         if (cancelled) return;
         if (eventsRaw) {
           const parsed = JSON.parse(eventsRaw) as EventItem[];
-          setEvents(Array.isArray(parsed) ? parsed : []);
+          let next = Array.isArray(parsed) ? parsed : [];
+          // 既存ユーザー向けマイグレーション: ピン済み (重要日) が一つも無ければサンプルを追記
+          if (!countdownSeeded && !next.some((e) => e.pinned)) {
+            const pinnedSamples = SAMPLE_EVENTS.filter((e) => e.pinned);
+            if (pinnedSamples.length > 0) {
+              next = [...next, ...pinnedSamples];
+              await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+            }
+          }
+          setEvents(next);
+          if (!countdownSeeded) {
+            await AsyncStorage.setItem(COUNTDOWN_SEED_FLAG_KEY, '1');
+          }
         } else if (!seeded) {
           setEvents(SAMPLE_EVENTS);
           await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(SAMPLE_EVENTS));
           await AsyncStorage.setItem(SEED_FLAG_KEY, '1');
+          await AsyncStorage.setItem(COUNTDOWN_SEED_FLAG_KEY, '1');
         }
       } catch {
         // ignore — start with empty state

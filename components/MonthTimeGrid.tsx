@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import React, { useEffect, useMemo, useRef } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -43,8 +44,8 @@ interface Props {
   viewEndHour?: number;
   /** 自分の予定の上に半透明で重ねる他人のスケジュール */
   overlays?: OverlayLayer[];
-  /** 各日の天気アイコン (絵文字) を ISO 日付でマップ。省略時は非表示 */
-  weatherByDate?: Map<string, string>;
+  /** 各日の天気アイコン情報 (Ionicons 名 + 色) を ISO 日付でマップ */
+  weatherByDate?: Map<string, { icon: string; color: string }>;
 }
 
 export function MonthTimeGrid({
@@ -206,11 +207,18 @@ export function MonthTimeGrid({
                       {d.day}
                     </Text>
                   </View>
-                  {weatherByDate?.get(d.iso) ? (
-                    <Text style={styles.headerWeather}>
-                      {weatherByDate.get(d.iso)}
-                    </Text>
-                  ) : null}
+                  {(() => {
+                    const w = weatherByDate?.get(d.iso);
+                    if (!w) return null;
+                    return (
+                      <Ionicons
+                        name={w.icon as any}
+                        size={14}
+                        color={w.color}
+                        style={styles.headerWeather}
+                      />
+                    );
+                  })()}
                 </Pressable>
               );
             })}

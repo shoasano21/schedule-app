@@ -16,9 +16,10 @@ import { useEvents } from '../../hooks/useEvents';
 import { useMonth } from '../../hooks/useMonth';
 import { useNowLine } from '../../hooks/useNowLine';
 import { useSharedSchedules } from '../../hooks/useSharedSchedules';
+import { useCurrentLocation } from '../../hooks/useCurrentLocation';
 import { useStudySessions } from '../../hooks/useStudySessions';
 import { useTheme } from '../../hooks/useTheme';
-import { useWeather, weatherEmoji } from '../../hooks/useWeather';
+import { TOKYO_LAT, TOKYO_LNG, useWeather, weatherIcon } from '../../hooks/useWeather';
 import type { EventItem } from '../../types/Event';
 
 export default function ScheduleScreen() {
@@ -27,13 +28,18 @@ export default function ScheduleScreen() {
   const month = useMonth();
   const events = useEvents();
   const { gridStartHour, gridEndHour, weatherEnabled } = usePreferences();
-  const weather = useWeather(weatherEnabled);
+  const location = useCurrentLocation(weatherEnabled);
+  const weather = useWeather(
+    weatherEnabled,
+    location.coord?.lat ?? TOKYO_LAT,
+    location.coord?.lng ?? TOKYO_LNG
+  );
   const weatherByDate = useMemo(() => {
-    const m = new Map<string, string>();
+    const m = new Map<string, { icon: string; color: string }>();
     if (!weatherEnabled) return m;
     for (const [date, w] of weather.byDate) {
-      const e = weatherEmoji(w.code);
-      if (e) m.set(date, e);
+      const ic = weatherIcon(w.code);
+      if (ic) m.set(date, ic);
     }
     return m;
   }, [weather.byDate, weatherEnabled]);
@@ -84,23 +90,6 @@ export default function ScheduleScreen() {
     ? shared.schedules.find((s) => s.id === activeSharedId) ?? null
     : null;
   const isShared = !!activeShared;
-
-  // 重要日 (pinned) の中から今日以降で最も近いものを 1 件 → カウントダウン用
-  const nextCountdown = useMemo(() => {
-    const todayISO = new Date().toISOString().slice(0, 10);
-    const list = (activeSharedId ? activeShared?.events ?? [] : events.events) as typeof events.events;
-    const upcoming = list
-      .filter((e) => e.pinned && e.date >= todayISO)
-      .sort((a, b) => a.date.localeCompare(b.date));
-    if (upcoming.length === 0) return null;
-    const ev = upcoming[0];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const target = new Date(ev.date + 'T00:00:00');
-    const days = Math.round((target.getTime() - today.getTime()) / 86400000);
-    return { title: ev.title, days };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [events.events, activeSharedId]);
 
   // 表示するイベント: 自分 or 共有された人のスナップショット
   const displayEventsByDate = useMemo(() => {
@@ -249,7 +238,6 @@ export default function ScheduleScreen() {
         onSearch={() => setSearchOpen(true)}
         onShare={() => setShareOpen(true)}
         viewingName={activeShared?.name ?? null}
-        countdown={nextCountdown}
         viewMode={viewMode}
         onChangeViewMode={(m) => {
           setViewMode(m);
